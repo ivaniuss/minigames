@@ -120,8 +120,34 @@ export class SoundManager {
       osc.stop(time + note.d);
     });
   }
+  async playWarp(isShrinking: boolean) {
+    await this.initAudio();
+    if (!this.audioCtx) return;
+
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'triangle';
+    const startFreq = isShrinking ? 880 : 220;
+    const endFreq = isShrinking ? 220 : 880;
+
+    osc.frequency.setValueAtTime(startFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.2);
+
+    gain.gain.setValueAtTime(0.1 * this.masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(now + 0.2);
+  }
 }
 
 export const soundManager = new SoundManager();
+
 
 

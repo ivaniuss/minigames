@@ -255,14 +255,15 @@ export class PhysicsEngine {
           if (other.label === 'portal-shrink' && !player.isShrinked) {
              Matter.Body.scale(player, 0.6, 0.6);
              player.isShrinked = true;
-             soundManager.playCollision(10); // Sonido fuerte para el efecto
+             soundManager.playWarp(true); // Nuevo sonido de encogimiento
           } else if (other.label === 'portal-grow' && player.isShrinked) {
              Matter.Body.scale(player, 1.666, 1.666);
              player.isShrinked = false;
-             soundManager.playCollision(10);
+             soundManager.playWarp(false); // Nuevo sonido de agrandamiento
           }
 
           soundManager.playCollision(pair.collision.depth || 5);
+
         }
 
 
