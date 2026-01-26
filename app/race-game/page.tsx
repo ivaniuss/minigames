@@ -53,7 +53,8 @@ const RaceGamePage = () => {
     soundManager.playWin();
   };
 
-  const resetScores = () => {
+  const resetScores = async () => {
+    await soundManager.unlock(); // Desbloquear audio en mobile
     setScores({});
     setWinner(null);
     if (engineRef.current) {
@@ -63,13 +64,16 @@ const RaceGamePage = () => {
 
 
 
-  const startRace = () => {
+
+  const startRace = async () => {
+    await soundManager.unlock(); // Desbloquear audio en mobile
     if (engineRef.current) {
       setWinner(null);
       setIsRaceActive(true);
       engineRef.current.spawnPlayers(COLORS);
     }
   };
+
 
   return (
     <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-4 lg:p-8 overflow-x-hidden font-sans">

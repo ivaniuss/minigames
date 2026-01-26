@@ -2,18 +2,34 @@ export class SoundManager {
   private audioCtx: AudioContext | null = null;
   private masterVolume: number = 0.2; // Ajusta este valor (0.0 a 1.0) para el volumen general
 
-  private async initAudio() {
+  // Método para desbloquear el audio en móviles (debe llamarse en un click/touchstart)
+  async unlock() {
     if (!this.audioCtx) {
       this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     if (this.audioCtx.state === 'suspended') {
       await this.audioCtx.resume();
     }
+    // Tocar un pequeño sonido silencioso para "activar" el motor en iOS
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    gain.gain.value = 0;
+    osc.connect(gain);
+    gain.connect(this.audioCtx.destination);
+    osc.start(0);
+    osc.stop(0.1);
+  }
+
+  private async initAudio() {
+    if (!this.audioCtx) {
+      await this.unlock();
+    }
   }
 
   async playCollision(intensity: number) {
-    await this.initAudio();
-
+    if (!this.audioCtx || this.audioCtx.state === 'suspended') {
+      await this.initAudio();
+    }
     if (!this.audioCtx) return;
 
     const ctx = this.audioCtx;
