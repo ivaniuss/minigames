@@ -22,10 +22,11 @@ export const LEVELS: Record<string, LevelDefinition> = {
       Matter.Bodies.rectangle(50, 350, 80, 10, { ...wallOptions, label: 'spinner-1', render: { fillStyle: '#00ffff' } }),
       Matter.Bodies.rectangle(400, 350, 80, 10, { ...wallOptions, label: 'spinner-2', render: { fillStyle: '#00ffff' } }),
       // Zona 3
-      Matter.Bodies.circle(GAME_WIDTH / 2, 280, 40, { isStatic: true, restitution: 1.3, label: 'map-part', render: { fillStyle: '#ffff00' } }),
-      // Zona 4
-      Matter.Bodies.rectangle(100, 160, 200, 20, { ...wallOptions, angle: 0.4, label: 'map-part' }),
-      Matter.Bodies.rectangle(350, 160, 200, 20, { ...wallOptions, angle: -0.4, label: 'map-part' }),
+      Matter.Bodies.circle(GAME_WIDTH / 2, 300, 35, { isStatic: true, restitution: 1.3, label: 'map-part', render: { fillStyle: '#ffff00' } }),
+      // Zona 4 (Rediseñada para que las bolas de tamaño 40 pasen fácil)
+      Matter.Bodies.rectangle(70, 160, 180, 20, { ...wallOptions, angle: 0.4, label: 'map-part' }),
+      Matter.Bodies.rectangle(380, 160, 180, 20, { ...wallOptions, angle: -0.4, label: 'map-part' }),
+
     ]
   },
   the_gauntlet: {
