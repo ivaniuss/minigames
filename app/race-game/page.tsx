@@ -72,7 +72,7 @@ const RaceGamePage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-8 overflow-hidden font-sans">
+    <div className="relative min-h-screen bg-[#050505] flex items-center justify-center p-4 lg:p-8 overflow-x-hidden font-sans">
       {/* Background decoration */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_70%)]" />
@@ -85,10 +85,10 @@ const RaceGamePage = () => {
         />
       </div>
 
-      <div className="relative z-10 flex flex-col lg:flex-row gap-12 items-start max-w-7xl w-full justify-center">
+      <div className="relative z-10 flex flex-col lg:flex-row gap-8 lg:gap-12 items-center lg:items-start max-w-7xl w-full justify-center">
         
         {/* Left Side: Leaderboard */}
-        <div className="lg:sticky lg:top-8 w-full lg:w-auto">
+        <div className="lg:sticky lg:top-8 w-full max-w-[220px]">
           <Leaderboard 
             scores={scores} 
             colors={COLORS} 
@@ -96,6 +96,7 @@ const RaceGamePage = () => {
             onReset={resetScores}
             isRaceActive={isRaceActive}
           />
+
 
           
           <div className="mt-8 p-6 bg-white/5 rounded-2xl border border-white/10 hidden lg:block">
@@ -109,17 +110,36 @@ const RaceGamePage = () => {
           </div>
         </div>
 
-        {/* Center: Game Scene */}
-        <div className="relative">
+        {/* Center: Game Scene (Responsive Scale) */}
+        <div className="relative transform scale-[0.80] sm:scale-90 md:scale-100 origin-top lg:origin-center">
           <div className="absolute -inset-1 bg-gradient-to-b from-emerald-500/20 to-transparent blur-2xl rounded-[40px]" />
-          <div className="relative bg-[#0a0a0a] border-[12px] border-[#1a1a1a] rounded-[40px] shadow-2xl overflow-hidden ring-1 ring-emerald-500/20">
+          <div className="relative bg-[#0a0a0a] border-[8px] lg:border-[12px] border-[#1a1a1a] rounded-[40px] shadow-2xl overflow-hidden ring-1 ring-emerald-500/20">
             {/* Inner glow effect */}
             <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_100px_rgba(0,0,0,0.8)] z-10" />
             
             <div ref={sceneRef} className="relative z-0" />
             
             <WinOverlay winner={winner} onNext={startRace} />
+
+            {/* Nueva Capa de Inicio sobre el juego */}
+            {!isRaceActive && !winner && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all animate-in fade-in duration-500">
+                <button
+                  onClick={startRace}
+                  className="group relative flex flex-col items-center gap-4 transition-transform active:scale-95"
+                >
+                  <div className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.4)] group-hover:shadow-[0_0_70px_rgba(16,185,129,0.6)] transition-all">
+                    {/* Icono de Play estilizado */}
+                    <div className="w-0 h-0 border-t-[15px] border-t-transparent border-l-[25px] border-l-black border-b-[15px] border-b-transparent ml-2" />
+                  </div>
+                  <span className="text-white font-black tracking-[0.3em] uppercase text-sm animate-pulse">
+                    Tap to Start
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
+
 
           {/* Decorative frame elements */}
           <div className="absolute top-0 left-12 right-12 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
