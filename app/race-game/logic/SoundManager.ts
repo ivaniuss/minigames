@@ -2,14 +2,18 @@ export class SoundManager {
   private audioCtx: AudioContext | null = null;
   private masterVolume: number = 0.2; // Ajusta este valor (0.0 a 1.0) para el volumen general
 
-  private initAudio() {
+  private async initAudio() {
     if (!this.audioCtx) {
       this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
+    if (this.audioCtx.state === 'suspended') {
+      await this.audioCtx.resume();
+    }
   }
 
-  playCollision(intensity: number) {
-    this.initAudio();
+  async playCollision(intensity: number) {
+    await this.initAudio();
+
     if (!this.audioCtx) return;
 
     const ctx = this.audioCtx;

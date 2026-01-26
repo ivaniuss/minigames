@@ -21,24 +21,44 @@ export const LEVELS: Record<string, LevelDefinition> = {
       Matter.Bodies.circle(330, 480, 35, { isStatic: true, restitution: 1.3, label: 'map-part', render: { fillStyle: '#ff00ff' } }),
       Matter.Bodies.rectangle(50, 350, 80, 10, { ...wallOptions, label: 'spinner-1', render: { fillStyle: '#00ffff' } }),
       Matter.Bodies.rectangle(400, 350, 80, 10, { ...wallOptions, label: 'spinner-2', render: { fillStyle: '#00ffff' } }),
-      // Zona 3
-      Matter.Bodies.circle(GAME_WIDTH / 2, 300, 35, { isStatic: true, restitution: 1.3, label: 'map-part', render: { fillStyle: '#ffff00' } }),
-      // Zona 4 (Rediseñada para que las bolas de tamaño 40 pasen fácil)
-      Matter.Bodies.rectangle(70, 160, 180, 20, { ...wallOptions, angle: 0.4, label: 'map-part' }),
-      Matter.Bodies.rectangle(380, 160, 180, 20, { ...wallOptions, angle: -0.4, label: 'map-part' }),
+      // Zona 3: EL MINI AGUJERO NEGRO (Reduce tamaño)
+      Matter.Bodies.circle(GAME_WIDTH / 2, 300, 35, { 
+        isStatic: true, 
+        label: 'portal-shrink', 
+        render: { fillStyle: '#000000', strokeStyle: '#ffffff', lineWidth: 2 } 
+      }),
+      // Zona 4 (Barreras cerradas de nuevo, forzando el uso del portal)
+      Matter.Bodies.rectangle(100, 160, 200, 15, { ...wallOptions, angle: 0.4, label: 'map-part' }),
+      Matter.Bodies.rectangle(350, 160, 200, 15, { ...wallOptions, angle: -0.4, label: 'map-part' }),
+
 
     ]
   },
   the_gauntlet: {
-    name: 'The Gauntlet',
+    name: 'The Gauntlet (Portals)',
     parts: (wallOptions) => [
-      Matter.Bodies.rectangle(150, 680, 300, 20, { ...wallOptions, angle: 0.2, label: 'map-part' }),
-      Matter.Bodies.rectangle(300, 550, 300, 20, { ...wallOptions, angle: -0.2, label: 'map-part' }),
-      Matter.Bodies.rectangle(150, 420, 300, 20, { ...wallOptions, angle: 0.2, label: 'map-part' }),
-      Matter.Bodies.rectangle(300, 290, 300, 20, { ...wallOptions, angle: -0.2, label: 'map-part' }),
-      Matter.Bodies.rectangle(GAME_WIDTH/2, 180, 100, 10, { ...wallOptions, label: 'spinner-1', render: { fillStyle: '#ff00ff' } }),
+      // Paredes zig-zag
+      Matter.Bodies.rectangle(150, 680, 250, 15, { ...wallOptions, angle: 0.2, label: 'map-part' }),
+      
+      // Portal Achicador (AZUL) - Justo antes de un pasillo estrecho
+      Matter.Bodies.rectangle(350, 600, 80, 10, { 
+        isStatic: true, label: 'portal-shrink', 
+        render: { fillStyle: '#0066ff', strokeStyle: '#ffffff', lineWidth: 4 } 
+      }),
+
+      Matter.Bodies.rectangle(300, 520, 300, 15, { ...wallOptions, angle: -0.2, label: 'map-part' }),
+      
+      // Portal Agrandador (NARANJA) - Para recuperar tamaño
+      Matter.Bodies.rectangle(100, 400, 80, 10, { 
+        isStatic: true, label: 'portal-grow', 
+        render: { fillStyle: '#ff9900', strokeStyle: '#ffffff', lineWidth: 4 } 
+      }),
+
+      Matter.Bodies.rectangle(150, 320, 250, 15, { ...wallOptions, angle: 0.2, label: 'map-part' }),
+      Matter.Bodies.rectangle(GAME_WIDTH/2, 180, 120, 10, { ...wallOptions, label: 'spinner-1', render: { fillStyle: '#ff00ff' } }),
     ]
   },
+
   plinko_madness: {
     name: 'Plinko Madness',
     parts: (wallOptions) => Array.from({ length: 12 }).map((_, i) => {

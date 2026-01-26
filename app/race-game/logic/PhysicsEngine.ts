@@ -85,9 +85,10 @@ export class PhysicsEngine {
     const levelDef = LEVELS[this.config.activeLevel] || LEVELS.high_flow;
     const levelParts = levelDef.parts(wallOptions);
 
-    // Lava Masiva
+    // --- LAVA MASIVA (Ahora es un SENSORE para evitar expulsiones bruscas) ---
     this.risingFloor = Matter.Bodies.rectangle(GAME_WIDTH / 2, GAME_HEIGHT + 600, GAME_WIDTH * 2, 1200, {
       isStatic: true,
+      isSensor: true, // Esto evita que "aplaste" y "patee" los objetos a través de paredes
       label: 'lava',
       render: { fillStyle: '#ff3300', opacity: 0.95 }
     });
@@ -106,17 +107,26 @@ export class PhysicsEngine {
     Matter.World.add(world, [...circuitWalls, ...levelParts, this.risingFloor, finishLine]);
   }
 
-
   private setupEvents() {
     Matter.Events.on(this.engine, 'beforeUpdate', () => {
       this.updateObstacles();
       this.updateRisingFloor();
+      
+      const floorTop = (this.risingFloor?.position.y || 0) - 600;
       
       if (!this.isRaceActive) return;
       
       const bodies = this.engine.world.bodies;
       bodies.forEach(body => {
         if ((body as any).colorName) {
+          // --- EMPUJE MANUAL DE LA LAVA ---
+          // Si el objeto está tocando o dentro de la lava, le aplicamos una fuerza hacia arriba
+          // Pero si está atascado contra una pared, la lava simplemente lo cubrirá
+          if (body.position.y > floorTop - 20) {
+              const upwardPush = 0.05; // Empuje suave
+              Matter.Body.applyForce(body, body.position, { x: 0, y: -upwardPush });
+          }
+
           const velocity = body.velocity;
           const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2);
           if (speed !== 0) {
@@ -191,15 +201,42 @@ export class PhysicsEngine {
       }
       context.restore();
 
-      // --- Emojis ---
-
-
-      context.font = '32px Arial';
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      
+      // --- Emojis y Efectos Especiales ---
       bodies.forEach(body => {
+        // --- Efecto Agujero Negro (Shrinkers) ---
+        if (body.label === 'portal-shrink') {
+          context.save();
+          context.translate(body.position.x, body.position.y);
+          const time = Date.now() * 0.002;
+          
+          // Círculos concéntricos vivos
+          for (let i = 1; i <= 3; i++) {
+            context.beginPath();
+            context.arc(0, 0, 15 + i * 8 + Math.sin(time + i) * 3, 0, Math.PI * 2);
+            context.strokeStyle = `rgba(255, 255, 255, ${0.1 * i})`;
+            context.lineWidth = 1;
+            context.stroke();
+          }
+
+          // Líneas radiales ("Horizonte de sucesos")
+          context.rotate(time);
+          for (let i = 0; i < 8; i++) {
+            context.beginPath();
+            context.moveTo(10, 0);
+            context.lineTo(30, 0);
+            context.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            context.lineWidth = 2;
+            context.stroke();
+            context.rotate(Math.PI / 4);
+          }
+          context.restore();
+        }
+
+        // --- Render de Emojis ---
         if ((body as PlayerBody).symbol) {
+          context.font = '32px Arial';
+          context.textAlign = 'center';
+          context.textBaseline = 'middle';
           context.fillText((body as PlayerBody).symbol, body.position.x, body.position.y);
         }
       });
@@ -211,8 +248,23 @@ export class PhysicsEngine {
         const bodyB = pair.bodyB as any;
 
         if (bodyA.colorName || bodyB.colorName) {
+          const player = bodyA.colorName ? bodyA : bodyB;
+          const other = bodyA.colorName ? bodyB : bodyA;
+
+          // --- LÓGICA DE PORTALES DE TAMAÑO ---
+          if (other.label === 'portal-shrink' && !player.isShrinked) {
+             Matter.Body.scale(player, 0.6, 0.6);
+             player.isShrinked = true;
+             soundManager.playCollision(10); // Sonido fuerte para el efecto
+          } else if (other.label === 'portal-grow' && player.isShrinked) {
+             Matter.Body.scale(player, 1.666, 1.666);
+             player.isShrinked = false;
+             soundManager.playCollision(10);
+          }
+
           soundManager.playCollision(pair.collision.depth || 5);
         }
+
 
         if (bodyA.label === 'finishLine' || bodyB.label === 'finishLine') {
           const winnerBody = bodyA.label === 'finishLine' ? bodyB : bodyA;
@@ -246,14 +298,21 @@ export class PhysicsEngine {
       }
     });
 
-    // --- ELIMINACIÓN DE JUGADORES ---
-    // Si un jugador es cubierto por completo por la lava (su posición Y es mayor al tope de la lava), desaparece
+    // --- ELIMINACIÓN DE JUGADORES (Tragados al 75%) ---
     const players = this.engine.world.bodies.filter(b => (b as any).colorName);
     players.forEach(player => {
-      if (player.position.y > floorTop + 10) {
+      // Obtenemos el radio actual (considerando si está encogido)
+      const radius = (player as any).circleRadius || 20;
+      
+      // La lava se lo "traga" cuando cubre el 75% de su altura (2R)
+      // Matemáticamente: Posición Y >= floorTop + (Radio * 0.5)
+      if (player.position.y > floorTop + (radius * 0.5)) {
         Matter.World.remove(this.engine.world, player);
+        // Opcional: Sonido de eliminación
+        soundManager.playCollision(2); 
       }
     });
+
   }
 
 
