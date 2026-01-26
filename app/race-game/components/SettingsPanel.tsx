@@ -117,11 +117,23 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onChange }
         </div>
       </div>
       
-      <div className="mt-auto pt-4 border-t border-blue-500/20">
+      <div className="mt-auto pt-4 border-t border-blue-500/20 space-y-3">
+        <button 
+          onClick={() => {
+            import('../logic/SoundManager').then(m => {
+              m.soundManager.unlock();
+              m.soundManager.playCollision(5);
+            });
+          }}
+          className="w-full py-2 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-lg text-[10px] font-black text-blue-400 uppercase tracking-widest transition-all active:scale-95"
+        >
+          🔊 Test Audio
+        </button>
         <p className="text-[9px] text-blue-500/60 leading-tight italic uppercase text-center font-bold">
           Dynamic Control <br/> Interface
         </p>
       </div>
+
     </div>
   );
 };

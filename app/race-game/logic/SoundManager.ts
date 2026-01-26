@@ -4,21 +4,32 @@ export class SoundManager {
 
   // Método para desbloquear el audio en móviles (debe llamarse en un click/touchstart)
   async unlock() {
-    if (!this.audioCtx) {
-      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    try {
+      if (!this.audioCtx) {
+        this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      if (this.audioCtx.state === 'suspended') {
+        await this.audioCtx.resume();
+      }
+
+      // Tocar un pequeño "beep" muy corto para activar el audio en mobile
+      const osc = this.audioCtx.createOscillator();
+      const gain = this.audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, this.audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.01, this.audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.audioCtx.currentTime + 0.05);
+      
+      osc.connect(gain);
+      gain.connect(this.audioCtx.destination);
+      osc.start();
+      osc.stop(this.audioCtx.currentTime + 0.05);
+    } catch (e) {
+      console.error("Error desbloqueando audio:", e);
     }
-    if (this.audioCtx.state === 'suspended') {
-      await this.audioCtx.resume();
-    }
-    // Tocar un pequeño sonido silencioso para "activar" el motor en iOS
-    const osc = this.audioCtx.createOscillator();
-    const gain = this.audioCtx.createGain();
-    gain.gain.value = 0;
-    osc.connect(gain);
-    gain.connect(this.audioCtx.destination);
-    osc.start(0);
-    osc.stop(0.1);
   }
+
 
   private async initAudio() {
     if (!this.audioCtx) {
