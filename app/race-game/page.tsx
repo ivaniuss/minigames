@@ -35,13 +35,25 @@ const RaceGamePage = () => {
       engineRef.current.updateConfig(config);
     }
 
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 's') {
+        startRace();
+      } else if (e.key.toLowerCase() === 'r') {
+        resetScores();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+
     return () => {
+      window.removeEventListener('keydown', handleKeyPress);
       if (engineRef.current) {
         engineRef.current.destroy();
         engineRef.current = null;
       }
     };
   }, [config]);
+
 
   const handleWin = (colorName: string) => {
     setWinner(colorName);
