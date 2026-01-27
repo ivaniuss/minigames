@@ -471,43 +471,81 @@ export class PhysicsEngine {
             const isTeleportIn = data.type === 'teleport-in';
             const isTeleportOut = data.type === 'teleport-out';
             
-            // Background Glow
-            context.globalAlpha = 0.3;
-            context.fillStyle = data.properties?.color || '#ffffff';
-            context.fillRect(-w/2, -h/2, w, h);
+            // Get effective color from properties or default definition
+            const defColor = OBJECT_DEFINITIONS[data.type]?.defaultProps?.properties?.color || '#ffffff';
+            const color = data.properties?.color || defColor;
             
-            // Distinct Portal Animations
-            context.strokeStyle = '#ffffff';
+            // Background Glow with pulsing transparency
+            context.globalAlpha = 0.2 + Math.sin(time * 2) * 0.1;
+            context.fillStyle = color;
+            context.beginPath();
+            if (context.roundRect) context.roundRect(-w/2, -h/2, w, h, 10);
+            else context.rect(-w/2, -h/2, w, h);
+            context.fill();
+            
+            // Ring Animations
             context.lineWidth = 2;
-            
-            for(let i=0; i<2; i++) {
+            for(let i=0; i<3; i++) {
               let s;
+              const progress = ((time*0.5 + i*0.4) % 1.2) / 1.2; 
+              
               if (isTeleportIn) {
-                s = 0.3 + ((time + i*0.5) % 1) * 0.7; // Converging
-                context.globalAlpha = 1 - (s - 0.3) / 0.7;
+                // IN: Rings close into the center (Converge)
+                s = 1.2 - progress; 
+                context.strokeStyle = color;
+                context.globalAlpha = progress; // Fades as it reaches center
               } else if (isTeleportOut) {
-                s = 1.0 - (((time + i*0.5) % 1) * 0.7); // Diverging
-                context.globalAlpha = 1 - (1 - s) / 0.7;
+                // OUT: Rings expand from the center (Diverge)
+                s = progress;
+                context.strokeStyle = color;
+                context.globalAlpha = 1 - progress; // Fades as it expands
               } else {
+                // Other pads: Simple pulse
                 s = 0.5 + Math.sin(time + i) * 0.2;
-                context.globalAlpha = 0.6;
+                context.strokeStyle = '#ffffff';
+                context.globalAlpha = 0.5;
               }
-              context.strokeRect(-w*s/2, -h*s/2, w*s, h*s);
+              
+              const rw = w * s;
+              const rh = h * s;
+              context.beginPath();
+              if (context.roundRect) context.roundRect(-rw/2, -rh/2, rw, rh, 5);
+              else context.strokeRect(-rw/2, -rh/2, rw, rh);
+              context.stroke();
             }
             context.globalAlpha = 1.0;
+
+            // Small clarifying label
+            if (isTeleportIn || isTeleportOut) {
+                context.font = 'bold 10px Inter, sans-serif';
+                context.fillStyle = '#ffffff';
+                context.textAlign = 'center';
+                context.fillText(isTeleportIn ? 'ENTRY' : 'EXIT', 0, h/2 + 12);
+            }
          }
 
         // 2. Dibujar ICONO (Emoji) si está habilitado
         if (data.properties?.showIcon) {
            const icon = OBJECT_DEFINITIONS[data.type]?.icon || '?';
-           context.font = '30px Arial';
+           context.font = '28px Arial';
            context.textAlign = 'center';
            context.textBaseline = 'middle';
-           // Pequeño drop shadow para el emoji
-           context.shadowBlur = 4;
-           context.shadowColor = 'rgba(0,0,0,0.5)';
-           context.rotate(-body.angle); // Mantener el emoji derecho
+           
+           context.shadowBlur = 8;
+           context.shadowColor = 'rgba(0,0,0,0.8)';
+           
+           context.save();
+           context.rotate(-body.angle);
+           
+           // Floating animation for portals
+           if (data.type.startsWith('teleport')) {
+               const hover = Math.sin(Date.now() * 0.005) * 5;
+               context.translate(0, hover);
+           }
+           
            context.fillText(icon, 0, 0);
+           context.restore();
+           context.shadowBlur = 0;
         }
 
         context.restore();

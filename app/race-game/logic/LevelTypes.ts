@@ -81,8 +81,8 @@ export const OBJECT_DEFINITIONS: Record<ObjectType, { label: string, icon: strin
   },
   'teleport-out': {
     label: 'Portal (Out)',
-    icon: '🌀',
-    defaultProps: { width: 50, height: 70, properties: { color: '#f59e0b', showIcon: true } }
+    icon: '✨',
+    defaultProps: { width: 50, height: 70, properties: { color: '#ff00ff', showIcon: true } }
   },
   'breakable': {
     label: 'Crate',
