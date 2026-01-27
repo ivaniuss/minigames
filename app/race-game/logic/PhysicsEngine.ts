@@ -272,6 +272,17 @@ export class PhysicsEngine {
           });
       }
       
+      if (obj.type === 'crate-dynamic') {
+          return Matter.Bodies.rectangle(obj.x, obj.y, obj.width || 45, obj.height || 45, {
+              ...bodyOptions,
+              isStatic: false,
+              friction: 0.1,
+              frictionAir: 0.02,
+              restitution: 0.5,
+              label: 'crate-dynamic'
+          });
+      }
+
       if (obj.type === 'finish') {
           const body = Matter.Bodies.rectangle(obj.x, obj.y, obj.width || 200, obj.height || 40, {
               isStatic: true,
@@ -283,6 +294,38 @@ export class PhysicsEngine {
           (body as any).originalWidth = obj.width || 200;
           (body as any).originalHeight = obj.height || 40;
           return body;
+      }
+
+      if (obj.type === 'triangle' || obj.type === 'triangle-right') {
+          const w = obj.width || 60;
+          const h = obj.height || 60;
+          let vertices;
+          
+          if (obj.type === 'triangle') {
+              vertices = [
+                { x: 0, y: -h / 2 },
+                { x: w / 2, y: h / 2 },
+                { x: -w / 2, y: h / 2 }
+              ];
+          } else {
+              vertices = [
+                { x: -w / 2, y: -h / 2 },
+                { x: w / 2, y: h / 2 },
+                { x: -w / 2, y: h / 2 }
+              ];
+          }
+
+          const body = Matter.Bodies.fromVertices(obj.x, obj.y, [vertices], {
+              ...bodyOptions,
+              isStatic: true,
+              label: obj.type,
+              render: { ...bodyOptions.render, fillStyle: 'transparent', strokeStyle: 'transparent' }
+          });
+          
+          if (body) {
+              Matter.Body.setPosition(body, { x: obj.x, y: obj.y });
+          }
+          return body || Matter.Bodies.rectangle(obj.x, obj.y, w, h, bodyOptions);
       }
 
       return Matter.Bodies.rectangle(obj.x, obj.y, obj.width || 40, obj.height || 40, { isStatic: true, objectData: obj } as any);
@@ -457,7 +500,44 @@ export class PhysicsEngine {
            context.stroke();
            context.shadowBlur = 0;
         } 
-        else if (data.type === 'spinner') {
+         else if (data.type === 'breakable' || data.type === 'crate-dynamic') {
+            const w = data.width || 45;
+            const h = data.height || 45;
+            context.fillStyle = data.properties?.color || '#8b4513';
+            context.fillRect(-w/2, -h/2, w, h);
+            
+            // Wooden crate texture
+            context.strokeStyle = 'rgba(0,0,0,0.3)';
+            context.lineWidth = 2;
+            context.strokeRect(-w/2 + 2, -h/2 + 2, w - 4, h - 4);
+            context.beginPath();
+            context.moveTo(-w/2, -h/2); context.lineTo(w/2, h/2);
+            context.moveTo(w/2, -h/2); context.lineTo(-w/2, h/2);
+            context.stroke();
+         }
+         else if (data.type === 'triangle' || data.type === 'triangle-right') {
+            const w = data.width || 60;
+            const h = data.height || 60;
+            context.fillStyle = data.properties?.color || (data.type === 'triangle' ? '#3b82f6' : '#ef4444');
+            context.beginPath();
+            
+            if (data.type === 'triangle') {
+                context.moveTo(0, -2*h/3);
+                context.lineTo(w/2, h/3);
+                context.lineTo(-w/2, h/3);
+            } else {
+                context.moveTo(-w/3, -2*h/3);
+                context.lineTo(2*w/3, h/3);
+                context.lineTo(-w/3, h/3);
+            }
+            
+            context.closePath();
+            context.fill();
+            context.strokeStyle = '#ffffff';
+            context.lineWidth = 2;
+            context.stroke();
+         }
+         else if (data.type === 'spinner') {
            const w = (body as any).originalWidth || 150;
            const h = (body as any).originalHeight || 15;
            context.fillStyle = data.properties?.color || '#d946ef';

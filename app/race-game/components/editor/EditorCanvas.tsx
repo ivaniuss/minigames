@@ -138,6 +138,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             const w = obj.width || (obj.radius ? obj.radius * 2 : 40);
             const h = obj.height || (obj.radius ? obj.radius * 2 : 40);
 
+            const isTriangle = obj.type === 'triangle';
+
             return (
                 <div
                     key={obj.id}
@@ -153,11 +155,17 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                         transform: `translate(-50%, -50%) rotate(${obj.rotation || 0}deg)`,
                         backgroundColor: obj.properties?.color || '#555',
                         borderRadius: obj.radius ? '50%' : '4px',
-                        boxShadow: isSelected ? '0 0 15px rgba(52,211,153,0.3)' : 'none'
+                        clipPath: isTriangle ? 'polygon(50% 0%, 100% 100%, 0% 100%)' : 
+                                  obj.type === 'triangle-right' ? 'polygon(0% 0%, 100% 100%, 0% 100%)' : 'none',
+                        boxShadow: isSelected && !isTriangle && obj.type !== 'triangle-right' ? '0 0 15px rgba(52,211,153,0.3)' : 'none'
                     }}
                 >
                     {(obj.properties?.showIcon ?? true) && (
-                        <span className="select-none text-xl opacity-80 filter drop-shadow-md pointer-events-none">
+                        <span 
+                            className={`select-none text-xl opacity-80 filter drop-shadow-md pointer-events-none
+                                ${isTriangle ? 'mt-4' : ''}
+                            `}
+                        >
                            {OBJECT_DEFINITIONS[obj.type]?.icon || ''}
                         </span>
                     )}

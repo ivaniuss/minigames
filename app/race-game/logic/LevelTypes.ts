@@ -11,7 +11,10 @@ export type ObjectType =
   | 'speed-slow' 
   | 'spinner' 
   | 'start' 
-  | 'finish';
+  | 'finish'
+  | 'triangle'
+  | 'triangle-right'
+  | 'crate-dynamic';
 
 export interface LevelObject {
   id: string;
@@ -113,5 +116,20 @@ export const OBJECT_DEFINITIONS: Record<ObjectType, { label: string, icon: strin
     label: 'Finish Line',
     icon: '🏆',
     defaultProps: { width: 400, height: 50, properties: { color: '#ffffff', showIcon: false } }
+  },
+  'triangle': {
+    label: 'Triangle',
+    icon: '🔺',
+    defaultProps: { width: 60, height: 60, properties: { color: '#3b82f6', showIcon: false } }
+  },
+  'triangle-right': {
+    label: 'Right Triangle',
+    icon: '📐',
+    defaultProps: { width: 60, height: 60, properties: { color: '#ef4444', showIcon: false } }
+  },
+  'crate-dynamic': {
+    label: 'Dynamic Crate',
+    icon: '📦',
+    defaultProps: { width: 45, height: 45, properties: { color: '#cd853f', showIcon: true } }
   }
 };
