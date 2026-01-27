@@ -114,7 +114,7 @@ export class PhysicsEngine {
       isStatic: true, 
       restitution: 1, 
       friction: 0,
-      render: { fillStyle: '#00f7ff', strokeStyle: '#ffffff', lineWidth: 1 } 
+      render: { fillStyle: 'transparent', strokeStyle: 'transparent', lineWidth: 0 } 
     };
 
     // Walls
@@ -277,8 +277,9 @@ export class PhysicsEngine {
               isStatic: true,
               isSensor: true,
               label: 'finishLine',
+              objectData: obj,
               render: { fillStyle: 'transparent', opacity: 0 }
-          });
+          } as any);
           (body as any).originalWidth = obj.width || 200;
           (body as any).originalHeight = obj.height || 40;
           return body;
@@ -348,21 +349,30 @@ export class PhysicsEngine {
           const w = (finishLine as any).originalWidth || 200;
           const h = (finishLine as any).originalHeight || 40;
           
+          // Use custom color if set in editor, else white
+          const data = (finishLine as any).objectData as LevelObject;
+          const customColor = data?.properties?.color || '#ffffff';
+          
           context.translate(-w/2, -h/2);
 
-          // Solid white background
-          context.fillStyle = '#ffffff';
+          // Background
+          context.fillStyle = customColor;
           context.fillRect(0, 0, w, h);
           
-          // Yellow/gold border for finish line feel
-          context.strokeStyle = '#FFD700';
-          context.lineWidth = 4;
+          // Border logic based on luminosity or just white/gold
+          context.strokeStyle = '#ffffff';
+          context.lineWidth = 2;
           context.strokeRect(0, 0, w, h);
           
-          // Inner orange border for depth
-          context.strokeStyle = '#FFA500';
-          context.lineWidth = 2;
-          context.strokeRect(2, 2, w - 4, h - 4);
+          // Pattern overlay (optional, but keep it clean)
+          context.fillStyle = 'rgba(255,255,255,0.2)';
+          const squareSize = 10;
+          for(let i=0; i<w; i+=squareSize*2) {
+              for(let j=0; j<h; j+=squareSize*2) {
+                  context.fillRect(i, j, squareSize, squareSize);
+                  context.fillRect(i+squareSize, j+squareSize, squareSize, squareSize);
+              }
+          }
 
           context.restore();
       }
