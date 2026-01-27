@@ -19,7 +19,7 @@ const RaceGamePage = () => {
     floorEnabled: false,
     floorSpeed: 0.5,
     floorDelay: 5000,
-    targetSpeed: 4,
+    targetSpeed: 5,
     playerSize: 40,
     raceTitle: 'DUCK RACE!',
     activeLevel: 'high_flow',
