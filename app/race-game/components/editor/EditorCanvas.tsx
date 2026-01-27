@@ -262,21 +262,28 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                             {/* Resize Handles (8 Points) */}
                             <div className="absolute inset-0 pointer-events-auto">
                                 {[
-                                    { x: -1, y: -1, cur: 'nwse-resize', cls: '-top-2 -left-2' },
-                                    { x: 1, y: -1, cur: 'nesw-resize', cls: '-top-2 -right-2' },
-                                    { x: -1, y: 1, cur: 'nesw-resize', cls: '-bottom-2 -left-2' },
-                                    { x: 1, y: 1, cur: 'nwse-resize', cls: '-bottom-2 -right-2' },
-                                    { x: 0, y: -1, cur: 'ns-resize', cls: '-top-2 left-1/2 -translate-x-1/2' },
-                                    { x: 0, y: 1, cur: 'ns-resize', cls: '-bottom-2 left-1/2 -translate-x-1/2' },
-                                    { x: -1, y: 0, cur: 'ew-resize', cls: '-left-2 top-1/2 -translate-y-1/2' },
-                                    { x: 1, y: 0, cur: 'ew-resize', cls: '-right-2 top-1/2 -translate-y-1/2' }
+                                    { x: -1, y: -1, cur: 'nwse-resize', cls: '-top-1 -left-1' },
+                                    { x: 1, y: -1, cur: 'nesw-resize', cls: '-top-1 -right-1' },
+                                    { x: -1, y: 1, cur: 'nesw-resize', cls: '-bottom-1 -left-1' },
+                                    { x: 1, y: 1, cur: 'nwse-resize', cls: '-bottom-1 -right-1' },
+                                    { x: 0, y: -1, cur: 'ns-resize', cls: '-top-1 left-1/2 -translate-x-1/2' },
+                                    { x: 0, y: 1, cur: 'ns-resize', cls: '-bottom-1 left-1/2 -translate-y-1/2' },
+                                    { x: -1, y: 0, cur: 'ew-resize', cls: '-left-1 top-1/2 -translate-y-1/2' },
+                                    { x: 1, y: 0, cur: 'ew-resize', cls: '-right-1 top-1/2 -translate-y-1/2' }
                                 ].map((h, i) => {
                                     if (obj.radius && (h.x === 0 || h.y === 0)) return null;
                                     return (
                                         <div 
                                             key={i}
-                                            className="absolute w-4 h-4 bg-emerald-400 border border-white rounded shadow-md hover:scale-125 transition-transform"
-                                            style={{ cursor: h.cur, left: h.x === -1 ? '-8px' : h.x === 1 ? 'auto' : '50%', right: h.x === 1 ? '-8px' : 'auto', top: h.y === -1 ? '-8px' : h.y === 1 ? 'auto' : '50%', bottom: h.y === 1 ? '-8px' : 'auto', transform: (h.x === 0 || h.y === 0) ? `translate(${h.x === 0 ? '-50%' : '0'}, ${h.y === 0 ? '-50%' : '0'})` : 'none' }}
+                                            className="absolute w-2 h-2 bg-emerald-400/40 border border-white/20 rounded-sm hover:bg-emerald-400 hover:scale-150 transition-all z-50"
+                                            style={{ 
+                                                cursor: h.cur, 
+                                                left: h.x === -1 ? '-4px' : h.x === 1 ? 'auto' : '50%', 
+                                                right: h.x === 1 ? '-4px' : 'auto', 
+                                                top: h.y === -1 ? '-4px' : h.y === 1 ? 'auto' : '50%', 
+                                                bottom: h.y === 1 ? '-4px' : 'auto', 
+                                                transform: (h.x === 0 || h.y === 0) ? `translate(${h.x === 0 ? '-50%' : '0'}, ${h.y === 0 ? '-50%' : '0'})` : 'none' 
+                                            }}
                                             onMouseDown={(e) => handleMouseDown(e, obj, 'resize', { x: h.x, y: h.y })}
                                         />
                                     );
@@ -285,14 +292,14 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                             
                             {/* Rotate Handle (Top Center, sticking out) */}
                             <div 
-                                className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto z-50"
+                                className="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto z-50"
                             >
-                                <div className="w-[1px] h-8 bg-emerald-400" />
+                                <div className="w-[1px] h-6 bg-emerald-400/50" />
                                 <div 
-                                    className={`w-7 h-7 bg-white border-2 border-emerald-400 rounded-full cursor-grab active:cursor-grabbing hover:bg-emerald-100 shadow-xl flex items-center justify-center transition-all ${dragRef.current?.type === 'rotate' ? 'scale-125 bg-emerald-400 text-white' : ''}`}
+                                    className={`w-5 h-5 bg-white/10 backdrop-blur-md border border-emerald-400/30 rounded-full cursor-grab active:cursor-grabbing hover:bg-emerald-400/40 shadow-xl flex items-center justify-center transition-all ${dragRef.current?.type === 'rotate' ? 'scale-125 bg-emerald-400 text-white' : ''}`}
                                     onMouseDown={(e) => handleMouseDown(e, obj, 'rotate')}
                                 >
-                                    <span className="text-[12px] font-black">↻</span>
+                                    <span className="text-[10px] font-black opacity-50">↻</span>
                                 </div>
                             </div>
                         </div>
