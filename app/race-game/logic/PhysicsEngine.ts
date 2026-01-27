@@ -27,7 +27,7 @@ export class PhysicsEngine {
   private raceStartTime: number = 0;
   private duckImages: Map<string, HTMLImageElement> = new Map();
   private config = {
-    floorEnabled: true,
+    floorEnabled: false,
     floorSpeed: 0.5,
     floorDelay: 5000,
     targetSpeed: 7,

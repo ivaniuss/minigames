@@ -148,7 +148,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onChange }
 
         <div className="space-y-2">
           <div className="flex justify-between text-[10px] font-black text-gray-400 uppercase tracking-widest">
-            <span>Ball Speed</span>
+            <span>Duck Speed</span>
             <span className="text-emerald-400">{config.targetSpeed}</span>
           </div>
           <input 

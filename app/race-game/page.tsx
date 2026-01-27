@@ -16,10 +16,10 @@ const RaceGamePage = () => {
   const [scores, setScores] = useState<Record<string, number>>({});
   const [isRaceActive, setIsRaceActive] = useState(false);
   const [config, setConfig] = useState({
-    floorEnabled: true,
+    floorEnabled: false,
     floorSpeed: 0.5,
     floorDelay: 5000,
-    targetSpeed: 7,
+    targetSpeed: 4,
     playerSize: 40,
     raceTitle: 'DUCK RACE!',
     activeLevel: 'high_flow',
