@@ -300,6 +300,7 @@ export class PhysicsEngine {
           const w = obj.width || 60;
           const h = obj.height || 60;
           let vertices;
+          let centroidOffset = { x: 0, y: 0 };
           
           if (obj.type === 'triangle') {
               vertices = [
@@ -307,15 +308,19 @@ export class PhysicsEngine {
                 { x: w / 2, y: h / 2 },
                 { x: -w / 2, y: h / 2 }
               ];
+              // The centroid of these vertices is at (0, h/6) relative to (0,0)
+              centroidOffset = { x: 0, y: h / 6 };
           } else {
               vertices = [
                 { x: -w / 2, y: -h / 2 },
                 { x: w / 2, y: h / 2 },
                 { x: -w / 2, y: h / 2 }
               ];
+              // The centroid of these vertices is at (-w/6, h/6) relative to (0,0)
+              centroidOffset = { x: -w / 6, y: h / 6 };
           }
 
-          const body = Matter.Bodies.fromVertices(obj.x, obj.y, [vertices], {
+          const body = Matter.Bodies.fromVertices(obj.x + centroidOffset.x, obj.y + centroidOffset.y, [vertices], {
               ...bodyOptions,
               isStatic: true,
               label: obj.type,
@@ -323,7 +328,8 @@ export class PhysicsEngine {
           });
           
           if (body) {
-              Matter.Body.setPosition(body, { x: obj.x, y: obj.y });
+              // Re-enforce position because fromVertices might shift it
+              Matter.Body.setPosition(body, { x: obj.x + centroidOffset.x, y: obj.y + centroidOffset.y });
           }
           return body || Matter.Bodies.rectangle(obj.x, obj.y, w, h, bodyOptions);
       }

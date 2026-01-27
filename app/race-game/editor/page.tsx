@@ -90,8 +90,8 @@ const EditorPage = () => {
     const newObj: LevelObject = {
       id: generateId(),
       type: type,
-      x: x,
-      y: y,
+      x: Math.round(x),
+      y: Math.round(y),
       ...def.defaultProps
     };
     setLevel({ ...level, objects: [...level.objects, newObj] });
