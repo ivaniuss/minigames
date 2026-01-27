@@ -164,6 +164,7 @@ export class PhysicsEngine {
           friction: 0,
           frictionAir: 0,
           restitution: 1,
+          angle: ((obj.rotation || 0) * Math.PI) / 180,
           render: {
               fillStyle: obj.properties?.color || '#ffffff',
               strokeStyle: '#ffffff',
@@ -606,9 +607,13 @@ export class PhysicsEngine {
         Matter.World.remove(this.engine.world, spinner);
         return;
       }
-      // Rotate visually only (body is static now)
+      
+      const data = (spinner as any).objectData as LevelObject;
+      const initialAngle = ((data?.rotation || 0) * Math.PI) / 180;
+      const spinSpeed = data?.properties?.speed || 0.05; // Default speed if not set
+      
       const direction = index % 2 === 0 ? 1 : -1;
-      Matter.Body.setAngle(spinner, time * 0.002 * direction);
+      Matter.Body.setAngle(spinner, initialAngle + (time * spinSpeed * 0.02 * direction));
     });
 
     const mapParts = this.engine.world.bodies.filter(b => b.label === 'map-part' || b.label === 'crate');
