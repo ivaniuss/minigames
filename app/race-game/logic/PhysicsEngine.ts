@@ -537,12 +537,6 @@ export class PhysicsEngine {
            context.save();
            context.rotate(-body.angle);
            
-           // Floating animation for portals
-           if (data.type.startsWith('teleport')) {
-               const hover = Math.sin(Date.now() * 0.005) * 5;
-               context.translate(0, hover);
-           }
-           
            context.fillText(icon, 0, 0);
            context.restore();
            context.shadowBlur = 0;
