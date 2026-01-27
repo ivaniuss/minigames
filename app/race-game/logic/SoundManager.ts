@@ -145,6 +145,10 @@ export class SoundManager {
     osc.start();
     osc.stop(now + 0.2);
   }
+
+  setVolume(volume: number) {
+    this.masterVolume = volume;
+  }
 }
 
 export const soundManager = new SoundManager();

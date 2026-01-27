@@ -2,7 +2,7 @@ import React from 'react';
 
 interface LeaderboardProps {
   scores: Record<string, number>;
-  colors: readonly { name: string; hex: string; symbol: string; glow: string }[];
+  colors: readonly { name: string; hex: string; symbol: string; image?: string; glow: string }[];
   onStart: () => void;
   onReset: () => void;
   isRaceActive: boolean;
@@ -13,7 +13,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ scores, colors, onStar
   return (
     <div className="bg-black/60 backdrop-blur-xl p-6 rounded-2xl border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)] w-full max-w-[220px] flex flex-col gap-6">
       <div className="text-center">
-        <h2 className="text-xl font-black text-emerald-400 tracking-[0.2em] uppercase mb-1">Food Race</h2>
+        <h2 className="text-xl font-black text-emerald-400 tracking-[0.2em] uppercase mb-1">Perpetual Race</h2>
         <div className="text-[10px] text-emerald-300/60 font-mono mb-2">SCOREBOARD</div>
         <div className="h-1 w-full bg-gradient-to-r from-transparent via-emerald-500 to-transparent opacity-50" />
       </div>
@@ -23,8 +23,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ scores, colors, onStar
         {colors.map((color) => (
           <div key={color.name} className="flex items-center justify-between group">
             <div className="flex items-center gap-3">
-              <div className="text-xl transition-transform group-hover:scale-125">
-                {color.symbol}
+              <div className="w-8 h-8 flex items-center justify-center transition-transform group-hover:scale-125 overflow-hidden">
+                {color.image ? (
+                  <img src={color.image} alt={color.name} className="w-full h-full object-contain" />
+                ) : (
+                  <div className="text-xl">{color.symbol}</div>
+                )}
               </div>
               <span className="text-sm font-bold text-gray-300 group-hover:text-white transition-colors">
                 {color.name}

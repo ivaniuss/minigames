@@ -7,6 +7,7 @@ import { WinOverlay } from './components/WinOverlay';
 import { COLORS } from './constants';
 import { soundManager } from './logic/SoundManager';
 import { SettingsPanel } from './components/SettingsPanel';
+import { StartOverlay } from './components/StartOverlay';
 
 const RaceGamePage = () => {
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -19,12 +20,45 @@ const RaceGamePage = () => {
     floorSpeed: 0.5,
     floorDelay: 5000,
     targetSpeed: 7,
-    raceTitle: 'FOOD BATTLE',
+    playerSize: 40,
+    raceTitle: 'DUCK RACE!',
     activeLevel: 'high_flow',
+    volume: 0.1,
   });
 
+  const [showStartOverlay, setShowStartOverlay] = useState(true);
 
 
+
+
+  useEffect(() => {
+    const handleCustomLevel = (e: any) => {
+        if (engineRef.current && e.detail) {
+            engineRef.current.loadLevel(e.detail);
+        }
+    };
+    window.addEventListener('load-custom-level', handleCustomLevel);
+    return () => window.removeEventListener('load-custom-level', handleCustomLevel);
+  }, []);
+
+  /* State for pending level load */
+  const [pendingLevel, setPendingLevel] = useState<any | null>(null);
+
+  useEffect(() => {
+    // Check for autoplay/test mode on mount
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('autoplay') === 'true') {
+        const testData = localStorage.getItem('race-game-test-level');
+        if (testData) {
+            try {
+                const level = JSON.parse(testData);
+                setPendingLevel(level);
+                // Also set config active level to avoid flash
+                setConfig(prev => ({ ...prev, activeLevel: 'test_level_active' }));
+            } catch(e) { console.error('Failed to load test level'); }
+        }
+    }
+  }, []);
 
   useEffect(() => {
     if (sceneRef.current && !engineRef.current) {
@@ -32,11 +66,35 @@ const RaceGamePage = () => {
     }
 
     if (engineRef.current) {
-      engineRef.current.updateConfig(config);
+      // Priority: Load pending custom level (Play Test)
+      if (pendingLevel) {
+          engineRef.current.loadLevel(pendingLevel);
+          // Zero out pending level to prevent re-loading? 
+          // Actually, we can just leave it or clear it. 
+          // If we clear it, we trigger another render.
+          // Let's NOT clear it inside useEffect to avoid loop risks, 
+          // just ensure current level matches or trust loadLevel does its job.
+          // But to be safe, let's clearer it in a separate effect or just run this once.
+          // Better: If config.activeLevel is 'test_level_active', we load it.
+      } else {
+          // Standard Config Update
+          const { volume, ...engineConfig } = config;
+          engineRef.current.updateConfig(engineConfig);
+          
+          if (config.activeLevel === 'custom') {
+               const data = localStorage.getItem('race-game-custom-level');
+               if (data) {
+                   try {
+                       engineRef.current.loadLevel(JSON.parse(data));
+                   } catch(e) {}
+               }
+          }
+      }
     }
+    soundManager.setVolume(config.volume);
 
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === 's') {
+      if (e.key.toLowerCase() === 's' || e.key === ' ') {
         startRace();
       } else if (e.key.toLowerCase() === 'r') {
         resetScores();
@@ -48,11 +106,11 @@ const RaceGamePage = () => {
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
       if (engineRef.current) {
-        engineRef.current.destroy();
+        engineRef.current.cleanup();
         engineRef.current = null;
       }
     };
-  }, [config]);
+  }, [config, pendingLevel]);
 
 
   const handleWin = (colorName: string) => {
@@ -69,6 +127,7 @@ const RaceGamePage = () => {
     await soundManager.unlock(); // Desbloquear audio en mobile
     setScores({});
     setWinner(null);
+    setShowStartOverlay(true);
     if (engineRef.current) {
       engineRef.current.spawnPlayers(COLORS);
     }
@@ -82,6 +141,7 @@ const RaceGamePage = () => {
     if (engineRef.current) {
       setWinner(null);
       setIsRaceActive(true);
+      setShowStartOverlay(false);
       engineRef.current.spawnPlayers(COLORS);
     }
   };
@@ -123,6 +183,10 @@ const RaceGamePage = () => {
               <p>{'>'} VELOCITY: CONSTANT</p>
               <p>{'>'} COLLISION: ELASTIC</p>
             </div>
+            
+            <a href="/race-game/editor" className="block mt-6 text-center py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-lg text-[10px] font-black text-emerald-400 uppercase tracking-widest transition-all">
+               🛠️ Open Level Editor
+            </a>
           </div>
         </div>
 
@@ -137,22 +201,9 @@ const RaceGamePage = () => {
             
             <WinOverlay winner={winner} onNext={startRace} />
 
-            {/* Nueva Capa de Inicio sobre el juego */}
-            {!isRaceActive && !winner && (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40 backdrop-blur-sm transition-all animate-in fade-in duration-500">
-                <button
-                  onClick={startRace}
-                  className="group relative flex flex-col items-center gap-4 transition-transform active:scale-95"
-                >
-                  <div className="w-24 h-24 rounded-full bg-emerald-500 flex items-center justify-center shadow-[0_0_50px_rgba(16,185,129,0.4)] group-hover:shadow-[0_0_70px_rgba(16,185,129,0.6)] transition-all">
-                    {/* Icono de Play estilizado */}
-                    <div className="w-0 h-0 border-t-[15px] border-t-transparent border-l-[25px] border-l-black border-b-[15px] border-b-transparent ml-2" />
-                  </div>
-                  <span className="text-white font-black tracking-[0.3em] uppercase text-sm animate-pulse">
-                    Tap to Start
-                  </span>
-                </button>
-              </div>
+            {/* Nueva Pantalla de Inicio */}
+            {showStartOverlay && (
+              <StartOverlay onStart={startRace} title={config.raceTitle} />
             )}
           </div>
 
@@ -191,6 +242,23 @@ const RaceGamePage = () => {
             </div>
           </div>
         </div>
+      </div>
+      {/* Floating Navigation Overlay */}
+      <div className="fixed bottom-6 left-6 z-[100] flex gap-3 opacity-20 hover:opacity-100 transition-opacity duration-500">
+         <a 
+            href="/" 
+            className="w-10 h-10 flex items-center justify-center bg-white/5 backdrop-blur-md border border-white/10 rounded-xl text-lg hover:bg-white/10 hover:border-emerald-500/50 transition-all active:scale-90"
+            title="Main Menu"
+         >
+            🏠
+         </a>
+         <a 
+            href="/race-game/editor" 
+            className="w-10 h-10 flex items-center justify-center bg-white/5 backdrop-blur-md border border-white/10 rounded-xl text-lg hover:bg-white/10 hover:border-emerald-500/50 transition-all active:scale-90"
+            title="Level Editor"
+         >
+            🛠️
+         </a>
       </div>
     </div>
   );

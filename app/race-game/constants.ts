@@ -1,9 +1,8 @@
 export const COLORS = [
-  { name: 'Burger', hex: '#FF3B30', symbol: '🍔', glow: 'rgba(255, 59, 48, 0.5)' },
-  { name: 'Salad', hex: '#4CD964', symbol: '🥗', glow: 'rgba(76, 217, 100, 0.5)' },
-  { name: 'Ice Cream', hex: '#007AFF', symbol: '🍦', glow: 'rgba(0, 122, 255, 0.5)' },
-  { name: 'Banana', hex: '#FFCC00', symbol: '🍌', glow: 'rgba(255, 204, 0, 0.5)' },
-  { name: 'Pizza', hex: '#AF52DE', symbol: '🍕', glow: 'rgba(175, 82, 222, 0.5)' },
+  { name: 'Yellow Duck', hex: '#FFCC00', symbol: '🦆', image: '/ducks/p1.png', glow: 'rgba(255, 204, 0, 0.5)' },
+  { name: 'Blue Duck', hex: '#007AFF', symbol: '🦆', image: '/ducks/p2.png', glow: 'rgba(0, 122, 255, 0.5)' },
+  { name: 'Green Duck', hex: '#4CD964', symbol: '🦆', image: '/ducks/p3.png', glow: 'rgba(76, 217, 100, 0.5)' },
+  { name: 'Purple Duck', hex: '#9B59B6', symbol: '🦆', image: '/ducks/p4.png', glow: 'rgba(155, 89, 182, 0.5)' },
 ] as const;
 
 

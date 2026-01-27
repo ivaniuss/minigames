@@ -22,6 +22,15 @@ export const WinOverlay: React.FC<WinOverlayProps> = ({ winner, onNext }) => {
         
         <div className="relative z-10">
           <h2 className="text-2xl font-black text-white/60 tracking-[0.5em] uppercase mb-2">Winner</h2>
+          
+          {colorData?.image && (
+            <div className="flex justify-center mb-4">
+              <div className="w-32 h-32 animate-bounce">
+                <img src={colorData.image} alt={winner} className="w-full h-full object-contain" />
+              </div>
+            </div>
+          )}
+
           <div 
             className="text-7xl font-black mb-8 italic tracking-tighter drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]"
             style={{ color: colorData?.hex }}
