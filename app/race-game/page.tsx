@@ -60,57 +60,60 @@ const RaceGamePage = () => {
     }
   }, []);
 
+  // 1. Initialization and Keyboard Shortcuts
   useEffect(() => {
     if (sceneRef.current && !engineRef.current) {
-      engineRef.current = new PhysicsEngine(sceneRef.current, handleWin);
+        engineRef.current = new PhysicsEngine(sceneRef.current, handleWin);
     }
-
-    if (engineRef.current) {
-      // Priority: Load pending custom level (Play Test)
-      if (pendingLevel) {
-          engineRef.current.loadLevel(pendingLevel);
-          // Zero out pending level to prevent re-loading? 
-          // Actually, we can just leave it or clear it. 
-          // If we clear it, we trigger another render.
-          // Let's NOT clear it inside useEffect to avoid loop risks, 
-          // just ensure current level matches or trust loadLevel does its job.
-          // But to be safe, let's clearer it in a separate effect or just run this once.
-          // Better: If config.activeLevel is 'test_level_active', we load it.
-      } else {
-          // Standard Config Update
-          const { volume, ...engineConfig } = config;
-          engineRef.current.updateConfig(engineConfig);
-          
-          if (config.activeLevel === 'custom') {
-               const data = localStorage.getItem('race-game-custom-level');
-               if (data) {
-                   try {
-                       engineRef.current.loadLevel(JSON.parse(data));
-                   } catch(e) {}
-               }
-          }
-      }
-    }
-    soundManager.setVolume(config.volume);
 
     const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
       if (e.key.toLowerCase() === 's' || e.key === ' ') {
+        e.preventDefault();
         startRace();
       } else if (e.key.toLowerCase() === 'r') {
+        e.preventDefault();
         resetScores();
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
-
     return () => {
       window.removeEventListener('keydown', handleKeyPress);
+    };
+  }, []);
+
+  // 2. Level Loading and Config Updates
+  useEffect(() => {
+    if (!engineRef.current) return;
+
+    // Always update visual/physics config
+    const { volume, ...engineConfig } = config;
+    engineRef.current.updateConfig(engineConfig);
+    soundManager.setVolume(config.volume);
+
+    // Load level if pending, then clear it 
+    if (pendingLevel) {
+        engineRef.current.loadLevel(pendingLevel);
+        setPendingLevel(null); // Clear after loading so it doesn't block updates
+    } else if (config.activeLevel === 'custom') {
+        const data = localStorage.getItem('race-game-custom-level');
+        if (data) {
+            try { engineRef.current.loadLevel(JSON.parse(data)); } catch(e) {}
+        }
+    }
+  }, [config, pendingLevel]);
+
+  // 3. Cleanup on Unmount
+  useEffect(() => {
+    return () => {
       if (engineRef.current) {
         engineRef.current.cleanup();
         engineRef.current = null;
       }
     };
-  }, [config, pendingLevel]);
+  }, []);
 
 
   const handleWin = (colorName: string) => {
@@ -124,20 +127,24 @@ const RaceGamePage = () => {
   };
 
   const resetScores = async () => {
-    await soundManager.unlock(); // Desbloquear audio en mobile
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    await soundManager.unlock();
     setScores({});
     setWinner(null);
     setShowStartOverlay(true);
     if (engineRef.current) {
       engineRef.current.spawnPlayers(COLORS);
+      setIsRaceActive(false);
     }
   };
 
-
-
-
   const startRace = async () => {
-    await soundManager.unlock(); // Desbloquear audio en mobile
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    await soundManager.unlock();
     if (engineRef.current) {
       setWinner(null);
       setIsRaceActive(true);
@@ -216,21 +223,13 @@ const RaceGamePage = () => {
         </div>
 
         {/* Right Side: Info/Controls */}
-        <div className="w-full lg:w-64 space-y-6">
-          <div className="bg-emerald-500/5 p-6 rounded-2xl border border-emerald-500/20">
-            <h4 className="text-white font-bold mb-2 flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Live Stream Mode
-            </h4>
-            <p className="text-sm text-gray-400 leading-relaxed mb-4">
-              Perpetual Race Mode. Players bounce off obstacles at constant speed until someone hits the finish line.
-            </p>
-            <SettingsPanel 
-              config={config} 
-              onChange={(newVal) => setConfig(prev => ({ ...prev, ...newVal }))} 
-            />
-          </div>
-
+        {/* Right Side: Config Panel */}
+        <div className="w-full lg:w-72 space-y-6">
+          <SettingsPanel 
+            config={config} 
+            onChange={(newVal) => setConfig(prev => ({ ...prev, ...newVal }))} 
+          />
+          
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-white/5 rounded-xl border border-white/10 text-center">
               <div className="text-emerald-500 font-black text-xl mb-1">{Object.values(scores).reduce((a, b) => a + b, 0)}</div>

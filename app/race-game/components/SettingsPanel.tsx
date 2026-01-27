@@ -54,7 +54,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ config, onChange }
   };
 
   return (
-    <div className="absolute top-4 right-4 z-50 bg-black/60 backdrop-blur-xl p-6 rounded-2xl border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)] w-64 flex flex-col gap-6">
+    <div className="bg-black/60 backdrop-blur-xl p-6 rounded-2xl border border-emerald-500/30 shadow-[0_0_30px_rgba(16,185,129,0.1)] w-full flex flex-col gap-6">
       <div className="text-center">
         <h2 className="text-xl font-black text-emerald-400 tracking-[0.2em] uppercase mb-1">Config</h2>
         <div className="text-[10px] text-emerald-300/60 font-mono mb-2">SETTINGS</div>

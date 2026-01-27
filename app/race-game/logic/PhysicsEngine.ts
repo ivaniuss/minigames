@@ -10,6 +10,9 @@ export interface PlayerBody extends Matter.Body {
   colorHex: string;
   symbol: string;
   imagePath?: string;
+  currentSpeedMult?: number;
+  speedTimer?: number;
+  isShrinked?: boolean;
 }
 
 export class PhysicsEngine {
@@ -296,18 +299,30 @@ export class PhysicsEngine {
       const bodies = this.engine.world.bodies;
       bodies.forEach(body => {
         if ((body as any).colorName) {
+          const player = body as PlayerBody;
+          
+          // --- LÓGICA DE VELOCIDAD VARIABLE ---
+          // Decaimiento del multiplicador (vuelve a 1.0)
+          if ((player.currentSpeedMult || 1) !== 1) {
+            const diff = (player.currentSpeedMult || 1) - 1;
+            player.currentSpeedMult = (player.currentSpeedMult || 1) - (diff * 0.02);
+            if (Math.abs((player.currentSpeedMult || 1) - 1) < 0.01) player.currentSpeedMult = 1;
+          }
+
           // --- EMPUJE MANUAL DE LA LAVA ---
-          // Si el objeto está tocando o dentro de la lava, le aplicamos una fuerza hacia arriba
-          // Pero si está atascado contra una pared, la lava simplemente lo cubrirá
           if (body.position.y > floorTop - 20) {
-              const upwardPush = 0.05; // Empuje suave
+              const upwardPush = 0.05;
               Matter.Body.applyForce(body, body.position, { x: 0, y: -upwardPush });
           }
 
           const velocity = body.velocity;
-          const speed = Math.sqrt(velocity.x ** 2 + velocity.y ** 2);
+          const speed = Matter.Vector.magnitude(velocity);
           if (speed !== 0) {
-            const scale = this.config.targetSpeed / speed;
+            // La velocidad objetivo ahora considera el multiplicador del booster/slower
+            const currentTarget = this.config.targetSpeed * (player.currentSpeedMult || 1);
+            const scale = currentTarget / speed;
+            
+            // Aplicar escala suavemente para que los rebotes se sientan físicos pero controlados
             Matter.Body.setVelocity(body, {
               x: velocity.x * scale,
               y: velocity.y * scale
@@ -449,25 +464,38 @@ export class PhysicsEngine {
            context.strokeStyle = '#ffffff';
            context.strokeRect(-w/2, -h/2, w, h);
         }
-        else if (data.type.startsWith('teleport') || data.type.startsWith('size') || data.type.startsWith('speed')) {
-           const w = data.width || 60;
-           const h = data.height || 60;
-           const time = Date.now() * 0.003;
-           
-           // Efecto de Portal / Glow
-           context.globalAlpha = 0.6;
-           context.fillStyle = data.properties?.color || '#ffffff';
-           context.fillRect(-w/2, -h/2, w, h);
-           
-           // Animación de anillos
-           context.strokeStyle = '#ffffff';
-           context.lineWidth = 2;
-           for(let i=0; i<2; i++) {
-             const s = 0.5 + Math.sin(time + i) * 0.2;
-             context.strokeRect(-w*s/2, -h*s/2, w*s, h*s);
-           }
-           context.globalAlpha = 1.0;
-        }
+         else if (data.type.startsWith('teleport') || data.type.startsWith('size') || data.type.startsWith('speed')) {
+            const w = data.width || 60;
+            const h = data.height || 60;
+            const time = Date.now() * 0.003;
+            const isTeleportIn = data.type === 'teleport-in';
+            const isTeleportOut = data.type === 'teleport-out';
+            
+            // Background Glow
+            context.globalAlpha = 0.3;
+            context.fillStyle = data.properties?.color || '#ffffff';
+            context.fillRect(-w/2, -h/2, w, h);
+            
+            // Distinct Portal Animations
+            context.strokeStyle = '#ffffff';
+            context.lineWidth = 2;
+            
+            for(let i=0; i<2; i++) {
+              let s;
+              if (isTeleportIn) {
+                s = 0.3 + ((time + i*0.5) % 1) * 0.7; // Converging
+                context.globalAlpha = 1 - (s - 0.3) / 0.7;
+              } else if (isTeleportOut) {
+                s = 1.0 - (((time + i*0.5) % 1) * 0.7); // Diverging
+                context.globalAlpha = 1 - (1 - s) / 0.7;
+              } else {
+                s = 0.5 + Math.sin(time + i) * 0.2;
+                context.globalAlpha = 0.6;
+              }
+              context.strokeRect(-w*s/2, -h*s/2, w*s, h*s);
+            }
+            context.globalAlpha = 1.0;
+         }
 
         // 2. Dibujar ICONO (Emoji) si está habilitado
         if (data.properties?.showIcon) {
@@ -516,8 +544,14 @@ export class PhysicsEngine {
         const bodyB = pair.bodyB as any;
 
         if (bodyA.colorName || bodyB.colorName) {
-          const player = bodyA.colorName ? bodyA : bodyB;
-          const other = bodyA.colorName ? bodyB : bodyA;
+          const player = (bodyA.colorName ? bodyA : bodyB) as PlayerBody;
+          const other = (bodyA.colorName ? bodyB : bodyA) as any;
+
+          // --- 🦆 COLISIÓN ENTRE PATOS (Ducks) ---
+          if (bodyA.colorName && bodyB.colorName) {
+             soundManager.playCollision(2);
+             return;
+          }
 
           // --- 🌌 LÓGICA DE TELETRANSPORTE (Portales) ---
           if (other.label === 'teleport-in') {
@@ -526,14 +560,14 @@ export class PhysicsEngine {
              if (exits.length > 0) {
                 // Encontrar el más cercano a este portal de entrada
                 const nearest = exits.reduce((prev, curr) => {
-                   const distCurr = Matter.Vector.magnitude(Matter.Vector.sub(curr.position, other.position));
-                   const distPrev = Matter.Vector.magnitude(Matter.Vector.sub(prev.position, other.position));
-                   return distCurr < distPrev ? curr : prev;
+                   const dC = Matter.Vector.magnitude(Matter.Vector.sub(curr.position, other.position));
+                   const dP = Matter.Vector.magnitude(Matter.Vector.sub(prev.position, other.position));
+                   return dC < dP ? curr : prev;
                 });
                 
                 // Mover jugador a la salida con un pequeño offset para evitar bucles
                 Matter.Body.setPosition(player, { x: nearest.position.x, y: nearest.position.y });
-                soundManager.playWarp(true);
+                soundManager.playPortal();
                 return;
              }
           }
@@ -551,18 +585,16 @@ export class PhysicsEngine {
 
           // --- ⚡ LÓGICA DE VELOCIDAD ---
           if (other.label === 'speed-booster' || other.label === 'speed-slow') {
-             const mult = other.speedMult || 1.1;
-             Matter.Body.setVelocity(player, {
-               x: player.velocity.x * mult,
-               y: player.velocity.y * mult
-             });
-             soundManager.playCollision(1);
+             const mult = other.speedMult || (other.label === 'speed-booster' ? 1.5 : 0.6);
+             // Establecer multiplicador temporal (el decay ocurre en beforeUpdate)
+             player.currentSpeedMult = mult;
+             soundManager.playSpeedPad(mult > 1);
           }
 
           // --- 💀 LÓGICA DE PELIGRO ---
           if (other.label === 'hazard') {
              Matter.World.remove(this.engine.world, player);
-             soundManager.playCollision(10);
+             soundManager.playHazardHit();
              return;
           }
 
@@ -576,10 +608,15 @@ export class PhysicsEngine {
              
              if (other.health <= 0) {
                 Matter.World.remove(this.engine.world, other);
-                soundManager.playCollision(8);
+                soundManager.playBreakCrate();
              } else {
                 soundManager.playCollision(3);
              }
+          }
+
+          // --- 🧱 COLISIÓN GENÉRICA (Paredes, etc) ---
+          if (other.label === 'wall' || other.label === 'spinner') {
+             soundManager.playCollision(0.5); // Softer, more "solid" sound
           }
         }
 

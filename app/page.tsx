@@ -15,18 +15,18 @@ export default function Home() {
              <div className="absolute inset-0 bg-emerald-500/40 blur-2xl rounded-full" />
              <span className="text-7xl relative z-10">🦆</span>
           </div>
-          <h2 className="text-[10px] font-black text-emerald-500 tracking-[0.5em] uppercase mb-4 opacity-0 animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-forwards">
+          <h2 className="text-[10px] font-black text-emerald-500 tracking-[0.5em] uppercase mb-4">
             Premium Simulation
           </h2>
-          <h1 className="text-7xl md:text-8xl font-black text-white italic tracking-tighter mb-6 drop-shadow-[0_0_30px_rgba(255,255,255,0.1)] opacity-0 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-200 fill-mode-forwards">
+          <h1 className="text-7xl md:text-8xl font-black text-white italic tracking-tighter mb-6 drop-shadow-[0_0_30px_rgba(255,255,255,0.1)]">
             DUCK <span className="text-emerald-500">RACE!</span>
           </h1>
-          <p className="text-gray-400 text-lg md:text-xl max-w-xl leading-relaxed mb-12 opacity-0 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500 fill-mode-forwards">
+          <p className="text-gray-400 text-lg md:text-xl max-w-xl leading-relaxed mb-12">
             The ultimate physics-based duck racing experience. Watch your ducks navigate complex circuits or build your own masterworks.
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-6 opacity-0 animate-in fade-in slide-in-from-bottom-10 duration-1000 delay-700 fill-mode-forwards">
+        <div className="flex flex-col sm:flex-row gap-6">
           <Link
             href="/race-game"
             className="group relative px-12 py-5 bg-emerald-500 hover:bg-emerald-400 text-black font-black uppercase tracking-[0.2em] text-sm transition-all hover:scale-105 active:scale-95 shadow-[0_0_50px_rgba(16,185,129,0.2)] rounded-2xl overflow-hidden flex items-center gap-3"
@@ -45,7 +45,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 text-left opacity-0 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-1000 fill-mode-forwards">
+        <div className="mt-24 grid grid-cols-1 md:grid-cols-3 gap-8 text-left">
             <div className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-emerald-500/30 transition-colors group">
                 <div className="text-2xl mb-2 group-hover:scale-110 transition-transform w-fit">🌀</div>
                 <h3 className="text-white font-bold mb-2">Physics-First</h3>

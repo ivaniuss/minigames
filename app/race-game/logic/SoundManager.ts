@@ -146,6 +146,100 @@ export class SoundManager {
     osc.stop(now + 0.2);
   }
 
+  async playPortal() {
+    await this.initAudio();
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+    
+    // Spacey sweeping sound
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200, now);
+    osc.frequency.exponentialRampToValueAtTime(1000, now + 0.1);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.3);
+    
+    gain.gain.setValueAtTime(0.15 * this.masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(now + 0.3);
+  }
+
+  async playSpeedPad(isBooster: boolean) {
+    await this.initAudio();
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+    
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    
+    const f = isBooster ? 600 : 150;
+    osc.frequency.setValueAtTime(f, now);
+    osc.frequency.linearRampToValueAtTime(f * 2, now + 0.1);
+    
+    gain.gain.setValueAtTime(0.1 * this.masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(now + 0.15);
+  }
+
+  async playBreakCrate() {
+    await this.initAudio();
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    const now = ctx.currentTime;
+    
+    // Crunchy noise
+    const bufferSize = ctx.sampleRate * 0.1;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    const gain = ctx.createGain();
+    
+    gain.gain.setValueAtTime(0.2 * this.masterVolume, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.1);
+    
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1000, now);
+    
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+  }
+
+  async playHazardHit() {
+    await this.initAudio();
+    if (!this.audioCtx) return;
+    const ctx = this.audioCtx;
+    
+    // Dissonant buzz
+    [30, 45, 60].forEach(f => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.setValueAtTime(f, ctx.currentTime);
+        gain.gain.setValueAtTime(0.2 * this.masterVolume, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.3);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.3);
+    });
+  }
+
   setVolume(volume: number) {
     this.masterVolume = volume;
   }
