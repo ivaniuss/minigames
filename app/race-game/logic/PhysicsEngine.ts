@@ -415,6 +415,11 @@ export class PhysicsEngine {
           
           context.translate(-w/2, -h/2);
 
+          // Ensure strict dimensions by clipping
+          context.beginPath();
+          context.rect(0, 0, w, h);
+          context.clip();
+
           // Background
           context.fillStyle = customColor;
           context.fillRect(0, 0, w, h);
@@ -426,7 +431,7 @@ export class PhysicsEngine {
           context.strokeRect(0, 0, w, h);
           context.globalAlpha = 1.0;
           
-          // Pattern overlay (optional, but keep it clean)
+          // Pattern overlay (clipping ensures squares are cut if they exceed dimensions)
           context.fillStyle = 'rgba(255,255,255,0.2)';
           const squareSize = 10;
           for(let i=0; i<w; i+=squareSize*2) {
