@@ -141,13 +141,12 @@ export class PhysicsEngine {
       render: { fillStyle: '#ff0055', opacity: 0.8 } 
     });
 
-    // Finish Line (made transparent, rendered custom)
-    let finishLine: Matter.Body;
+    // Handle Finish Line (Default if none in custom level)
+    const hasCustomFinish = this.customLevel?.objects.some(o => o.type === 'finish');
+    let defaultFinish: Matter.Body | null = null;
     
-    if (this.customLevel && this.customLevel.objects.some(o => o.type === 'finish')) {
-        finishLine = Matter.Bodies.rectangle(0, -1000, 0, 0, { isStatic: true }); // Dummy if exists in level
-    } else {
-        finishLine = Matter.Bodies.rectangle(GAME_WIDTH / 2, 45, 120, 40, {
+    if (!hasCustomFinish && !(!this.customLevel && (LEVELS[this.config.activeLevel] as any)?.objects?.some((o:any) => o.type === 'finish'))) {
+        defaultFinish = Matter.Bodies.rectangle(GAME_WIDTH / 2, 45, 120, 40, {
             isStatic: true,
             isSensor: true,
             label: 'finishLine',
@@ -159,7 +158,10 @@ export class PhysicsEngine {
         });
     }
 
-    Matter.World.add(world, [...circuitWalls, ...levelParts, this.risingFloor, finishLine]);
+    const bodiesToAdd = [...circuitWalls, ...levelParts, this.risingFloor];
+    if (defaultFinish) bodiesToAdd.push(defaultFinish);
+
+    Matter.World.add(world, bodiesToAdd);
   }
 
   private createBodyFromObject(obj: LevelObject): Matter.Body {
@@ -170,8 +172,8 @@ export class PhysicsEngine {
           angle: ((obj.rotation || 0) * Math.PI) / 180,
           render: {
               fillStyle: obj.properties?.color || '#ffffff',
-              strokeStyle: '#ffffff',
-              lineWidth: 2
+              strokeStyle: 'transparent',
+              lineWidth: 0
           }
       };
 
@@ -268,8 +270,9 @@ export class PhysicsEngine {
               isStatic: true,
               isSensor: true,
               label: 'start-line-dummy',
+              objectData: obj, // Added for renderer
               render: { fillStyle: 'transparent', opacity: 0 }
-          });
+          } as any);
       }
       
       if (obj.type === 'crate-dynamic') {
@@ -308,7 +311,6 @@ export class PhysicsEngine {
                 { x: w / 2, y: h / 2 },
                 { x: -w / 2, y: h / 2 }
               ];
-              // The centroid of these vertices is at (0, h/6) relative to (0,0)
               centroidOffset = { x: 0, y: h / 6 };
           } else {
               vertices = [
@@ -316,11 +318,18 @@ export class PhysicsEngine {
                 { x: w / 2, y: h / 2 },
                 { x: -w / 2, y: h / 2 }
               ];
-              // The centroid of these vertices is at (-w/6, h/6) relative to (0,0)
               centroidOffset = { x: -w / 6, y: h / 6 };
           }
 
-          const body = Matter.Bodies.fromVertices(obj.x + centroidOffset.x, obj.y + centroidOffset.y, [vertices], {
+          const angle = ((obj.rotation || 0) * Math.PI) / 180;
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          
+          // Important: Rotate the centroid offset to match world-space placement
+          const rotatedOffsetX = centroidOffset.x * cos - centroidOffset.y * sin;
+          const rotatedOffsetY = centroidOffset.x * sin + centroidOffset.y * cos;
+
+          const body = Matter.Bodies.fromVertices(obj.x + rotatedOffsetX, obj.y + rotatedOffsetY, [vertices], {
               ...bodyOptions,
               isStatic: true,
               label: obj.type,
@@ -328,8 +337,10 @@ export class PhysicsEngine {
           });
           
           if (body) {
-              // Re-enforce position because fromVertices might shift it
-              Matter.Body.setPosition(body, { x: obj.x + centroidOffset.x, y: obj.y + centroidOffset.y });
+              // Re-enforce position and angle because fromVertices might shift it
+              Matter.Body.setAngle(body, angle);
+              Matter.Body.setPosition(body, { x: obj.x + rotatedOffsetX, y: obj.y + rotatedOffsetY });
+              (body as any).objectData = obj; // Ensure renderer has it
           }
           return body || Matter.Bodies.rectangle(obj.x, obj.y, w, h, bodyOptions);
       }
@@ -409,9 +420,11 @@ export class PhysicsEngine {
           context.fillRect(0, 0, w, h);
           
           // Border logic based on luminosity or just white/gold
-          context.strokeStyle = '#ffffff';
-          context.lineWidth = 2;
+          context.strokeStyle = customColor;
+          context.globalAlpha = 0.5;
+          context.lineWidth = 1;
           context.strokeRect(0, 0, w, h);
+          context.globalAlpha = 1.0;
           
           // Pattern overlay (optional, but keep it clean)
           context.fillStyle = 'rgba(255,255,255,0.2)';
@@ -501,9 +514,6 @@ export class PhysicsEngine {
            context.beginPath();
            context.arc(0, 0, radius, 0, Math.PI * 2);
            context.fill();
-           context.strokeStyle = '#ffffff';
-           context.lineWidth = 3;
-           context.stroke();
            context.shadowBlur = 0;
         } 
          else if (data.type === 'breakable' || data.type === 'crate-dynamic') {
@@ -539,9 +549,6 @@ export class PhysicsEngine {
             
             context.closePath();
             context.fill();
-            context.strokeStyle = '#ffffff';
-            context.lineWidth = 2;
-            context.stroke();
          }
          else if (data.type === 'spinner') {
            const w = (body as any).originalWidth || 150;
@@ -557,8 +564,6 @@ export class PhysicsEngine {
              const drawW = Math.min(stripeW, w/2 - drawX);
              if (drawW > 0) context.fillRect(drawX, -h/2, drawW, h);
            }
-           context.strokeStyle = '#ffffff';
-           context.strokeRect(-w/2, -h/2, w, h);
         }
          else if (data.type.startsWith('teleport') || data.type.startsWith('size') || data.type.startsWith('speed')) {
             const w = data.width || 60;
@@ -598,7 +603,7 @@ export class PhysicsEngine {
               } else {
                 // Other pads: Simple pulse
                 s = 0.5 + Math.sin(time + i) * 0.2;
-                context.strokeStyle = '#ffffff';
+                context.strokeStyle = color;
                 context.globalAlpha = 0.5;
               }
               
@@ -888,8 +893,8 @@ export class PhysicsEngine {
           label: `player-${color.name}`,
           render: { 
             fillStyle: color.hex,
-            strokeStyle: '#ffffff',
-            lineWidth: 3,
+            strokeStyle: 'transparent',
+            lineWidth: 0,
             opacity: 0.8 
           }
         }

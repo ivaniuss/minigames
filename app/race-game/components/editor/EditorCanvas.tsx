@@ -175,17 +175,21 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             }}
         />
 
-        {/* Rotation Guide Lines */}
+        {/* World Boundary Indicators (Matches PhysicsEngine walls) */}
+        <div className="absolute top-0 left-0 right-0 h-[10px] bg-emerald-500/10 border-b border-emerald-500/20 pointer-events-none" title="Top Wall Boundary" />
+        <div className="absolute top-0 bottom-0 left-0 w-[10px] bg-emerald-500/10 border-r border-emerald-500/20 pointer-events-none" title="Left Wall Boundary" />
+        <div className="absolute top-0 bottom-0 right-0 w-[10px] bg-emerald-500/10 border-l border-emerald-500/20 pointer-events-none" title="Right Wall Boundary" />
+
+        {/* Rotation Guide Lines & Angle Ribbon */}
         {rotationGuide !== null && (
-            <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none z-[100] flex items-center justify-center overflow-hidden">
                 <div 
-                    className="absolute w-[300%] h-[1px] border-t border-emerald-500/40 border-dashed shadow-[0_0_10px_rgba(16,185,129,0.3)] transition-all"
-                    style={{ 
-                        transform: `rotate(${rotationGuide - 90}deg)`,
-                        left: '-100%',
-                        right: '-100%'
-                    }}
+                    className="absolute w-[300%] h-[1px] border-t border-emerald-500/60 border-dashed shadow-[0_0_10px_rgba(16,185,129,0.3)]"
+                    style={{ transform: `rotate(${rotationGuide - 90}deg)` }}
                 />
+                <div className="absolute top-10 px-4 py-2 bg-emerald-600/90 text-white text-xl font-black rounded-full shadow-2xl animate-bounce">
+                    {rotationGuide}°
+                </div>
             </div>
         )}
 
@@ -195,30 +199,44 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             const h = obj.height || (obj.radius ? obj.radius * 2 : 40);
 
             const isTriangle = obj.type === 'triangle';
+            const isRightTriangle = obj.type === 'triangle-right';
+            const rotation = obj.rotation || 0;
 
             return (
                 <div
                     key={obj.id}
                     onMouseDown={(e) => handleMouseDown(e, obj, 'move')}
                     className={`absolute group cursor-move flex items-center justify-center
-                        ${isSelected ? 'ring-2 ring-emerald-400 z-50' : 'hover:ring-1 hover:ring-white/30 z-10'}
+                        ${isSelected ? 'z-50' : 'z-10'}
                     `}
                     style={{
                         left: obj.x,
                         top: obj.y,
                         width: w,
                         height: h,
-                        transform: `translate(-50%, -50%) rotate(${obj.rotation || 0}deg)`,
-                        backgroundColor: obj.properties?.color || '#555',
-                        borderRadius: obj.radius ? '50%' : '4px',
-                        clipPath: isTriangle ? 'polygon(50% 0%, 100% 100%, 0% 100%)' : 
-                                  obj.type === 'triangle-right' ? 'polygon(0% 0%, 100% 100%, 0% 100%)' : 'none',
-                        boxShadow: isSelected && !isTriangle && obj.type !== 'triangle-right' ? '0 0 15px rgba(52,211,153,0.3)' : 'none'
+                        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
                     }}
                 >
+                    {/* Visual Shape (No border as requested) */}
+                    <div 
+                        className="absolute inset-0 z-10"
+                        style={{
+                            backgroundColor: obj.properties?.color || '#555',
+                            borderRadius: obj.radius ? '50%' : '4px',
+                            clipPath: isTriangle ? 'polygon(50% 0%, 100% 100%, 0% 100%)' : 
+                                      isRightTriangle ? 'polygon(0% 0%, 100% 100%, 0% 100%)' : 'none',
+                        }}
+                    />
+
+                    {/* Selection Glow (Subtle ring) */}
+                    {isSelected && (
+                        <div className="absolute -inset-1 ring-1 ring-emerald-400/50 rounded-lg pointer-events-none z-30" />
+                    )}
+
+                    {/* Icon */}
                     {(obj.properties?.showIcon ?? true) && (
                         <span 
-                            className={`select-none text-xl opacity-80 filter drop-shadow-md pointer-events-none
+                            className={`select-none text-xl opacity-80 filter drop-shadow-md pointer-events-none z-40
                                 ${isTriangle ? 'mt-4' : ''}
                             `}
                         >
@@ -226,45 +244,58 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                         </span>
                     )}
                     
-                    {/* Handles - Only visible when selected */}
+                    {/* UI Overlay (Labels and Handles - Not Clipped) */}
                     {isSelected && (
-                        <>
+                        <div className="absolute inset-0 pointer-events-none">
+                            {/* Persistent Rotation Label (Smaller) */}
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm px-1.5 py-0.5 rounded text-[8px] font-bold text-emerald-400 border border-emerald-500/20 whitespace-nowrap shadow-sm z-50">
+                                {rotation}°
+                            </div>
+
+                            {/* Rotation Angle Badge (Smaller, fixed position) */}
+                            {dragRef.current?.type === 'rotate' && (
+                                <div className="absolute -top-16 left-1/2 -translate-x-1/2 bg-emerald-500 text-black px-2 py-0.5 rounded text-xs font-black shadow-lg z-[100] whitespace-nowrap">
+                                    {rotation}°
+                                </div>
+                            )}
+
                             {/* Resize Handles (8 Points) */}
-                            {[
-                                { x: -1, y: -1, cur: 'nwse-resize', cls: '-top-1.5 -left-1.5' },
-                                { x: 1, y: -1, cur: 'nesw-resize', cls: '-top-1.5 -right-1.5' },
-                                { x: -1, y: 1, cur: 'nesw-resize', cls: '-bottom-1.5 -left-1.5' },
-                                { x: 1, y: 1, cur: 'nwse-resize', cls: '-bottom-1.5 -right-1.5' },
-                                { x: 0, y: -1, cur: 'ns-resize', cls: '-top-1.5 left-1/2 -translate-x-1/2' },
-                                { x: 0, y: 1, cur: 'ns-resize', cls: '-bottom-1.5 left-1/2 -translate-x-1/2' },
-                                { x: -1, y: 0, cur: 'ew-resize', cls: '-left-1.5 top-1/2 -translate-y-1/2' },
-                                { x: 1, y: 0, cur: 'ew-resize', cls: '-right-1.5 top-1/2 -translate-y-1/2' }
-                            ].map((h, i) => {
-                                // Skip side handles for circles/radius-based objects
-                                if (obj.radius && (h.x === 0 || h.y === 0)) return null;
-                                return (
-                                    <div 
-                                        key={i}
-                                        className={`absolute w-3 h-3 bg-emerald-400 border border-white rounded-sm shadow-md hover:scale-150 transition-transform ${h.cls}`}
-                                        style={{ cursor: h.cur }}
-                                        onMouseDown={(e) => handleMouseDown(e, obj, 'resize', { x: h.x, y: h.y })}
-                                    />
-                                );
-                            })}
+                            <div className="absolute inset-0 pointer-events-auto">
+                                {[
+                                    { x: -1, y: -1, cur: 'nwse-resize', cls: '-top-2 -left-2' },
+                                    { x: 1, y: -1, cur: 'nesw-resize', cls: '-top-2 -right-2' },
+                                    { x: -1, y: 1, cur: 'nesw-resize', cls: '-bottom-2 -left-2' },
+                                    { x: 1, y: 1, cur: 'nwse-resize', cls: '-bottom-2 -right-2' },
+                                    { x: 0, y: -1, cur: 'ns-resize', cls: '-top-2 left-1/2 -translate-x-1/2' },
+                                    { x: 0, y: 1, cur: 'ns-resize', cls: '-bottom-2 left-1/2 -translate-x-1/2' },
+                                    { x: -1, y: 0, cur: 'ew-resize', cls: '-left-2 top-1/2 -translate-y-1/2' },
+                                    { x: 1, y: 0, cur: 'ew-resize', cls: '-right-2 top-1/2 -translate-y-1/2' }
+                                ].map((h, i) => {
+                                    if (obj.radius && (h.x === 0 || h.y === 0)) return null;
+                                    return (
+                                        <div 
+                                            key={i}
+                                            className="absolute w-4 h-4 bg-emerald-400 border border-white rounded shadow-md hover:scale-125 transition-transform"
+                                            style={{ cursor: h.cur, left: h.x === -1 ? '-8px' : h.x === 1 ? 'auto' : '50%', right: h.x === 1 ? '-8px' : 'auto', top: h.y === -1 ? '-8px' : h.y === 1 ? 'auto' : '50%', bottom: h.y === 1 ? '-8px' : 'auto', transform: (h.x === 0 || h.y === 0) ? `translate(${h.x === 0 ? '-50%' : '0'}, ${h.y === 0 ? '-50%' : '0'})` : 'none' }}
+                                            onMouseDown={(e) => handleMouseDown(e, obj, 'resize', { x: h.x, y: h.y })}
+                                        />
+                                    );
+                                })}
+                            </div>
                             
                             {/* Rotate Handle (Top Center, sticking out) */}
                             <div 
-                                className="absolute -top-10 left-1/2 -translate-x-1/2 flex flex-col items-center"
+                                className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-auto z-50"
                             >
-                                <div className="w-[1px] h-6 bg-emerald-400" />
+                                <div className="w-[1px] h-8 bg-emerald-400" />
                                 <div 
-                                    className="w-5 h-5 bg-white border-2 border-emerald-400 rounded-full cursor-grab active:cursor-grabbing hover:bg-emerald-100 shadow-lg flex items-center justify-center"
+                                    className={`w-7 h-7 bg-white border-2 border-emerald-400 rounded-full cursor-grab active:cursor-grabbing hover:bg-emerald-100 shadow-xl flex items-center justify-center transition-all ${dragRef.current?.type === 'rotate' ? 'scale-125 bg-emerald-400 text-white' : ''}`}
                                     onMouseDown={(e) => handleMouseDown(e, obj, 'rotate')}
                                 >
-                                    <span className="text-[10px] text-emerald-600 font-bold">↻</span>
+                                    <span className="text-[12px] font-black">↻</span>
                                 </div>
                             </div>
-                        </>
+                        </div>
                     )}
                 </div>
             );
