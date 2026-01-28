@@ -24,8 +24,10 @@ export class PhysicsEngine {
   private winner: string | null = null;
 
   private risingFloor: Matter.Body | null = null;
+  private movingHazards: Matter.Body[] = [];
   private raceStartTime: number = 0;
   private duckImages: Map<string, HTMLImageElement> = new Map();
+  private hazardState: Map<string, { startX: number, startY: number, startW: number, startH: number, distance: number }> = new Map();
   private config = {
     floorEnabled: false,
     floorSpeed: 0.5,
@@ -133,13 +135,33 @@ export class PhysicsEngine {
        levelParts = levelDef.parts(wallOptions);
     }
 
-    // --- LAVA (Rising Floor) ---
-    this.risingFloor = Matter.Bodies.rectangle(GAME_WIDTH / 2, GAME_HEIGHT + 600, GAME_WIDTH * 2, 1200, {
-      isStatic: true,
-      isSensor: true,
-      label: 'lava',
-      render: { fillStyle: '#ff0055', opacity: 0.8 } 
+    // --- HAZARDS (Dynamic & Configurable) ---
+    this.movingHazards = [];
+    
+    // 1. Add hazards from level data
+    levelParts.forEach(body => {
+      const data = (body as any).objectData as LevelObject;
+      if (data?.type === 'moving-hazard') {
+        this.movingHazards.push(body);
+      }
     });
+
+    // 2. Legacy Support: Add default rising floor if enabled and no custom hazards exist
+    if (this.config.floorEnabled && this.movingHazards.length === 0) {
+      this.risingFloor = Matter.Bodies.rectangle(GAME_WIDTH / 2, GAME_HEIGHT + 600, GAME_WIDTH * 2, 1200, {
+        isStatic: true,
+        isSensor: true,
+        label: 'lava',
+        render: { fillStyle: '#ff0055', opacity: 0.8 },
+        objectData: {
+          type: 'moving-hazard',
+          properties: { moveSpeedX: 0, moveSpeedY: -this.config.floorSpeed, moveDelay: this.config.floorDelay }
+        }
+      } as any);
+      this.movingHazards.push(this.risingFloor);
+    } else {
+      this.risingFloor = null;
+    }
 
     // Handle Finish Line (Default if none in custom level)
     const hasCustomFinish = this.customLevel?.objects.some(o => o.type === 'finish');
@@ -158,7 +180,8 @@ export class PhysicsEngine {
         });
     }
 
-    const bodiesToAdd = [...circuitWalls, ...levelParts, this.risingFloor];
+    const bodiesToAdd = [...circuitWalls, ...levelParts];
+    if (this.risingFloor) bodiesToAdd.push(this.risingFloor);
     if (defaultFinish) bodiesToAdd.push(defaultFinish);
 
     Matter.World.add(world, bodiesToAdd);
@@ -286,18 +309,40 @@ export class PhysicsEngine {
           });
       }
 
-      if (obj.type === 'finish') {
-          const body = Matter.Bodies.rectangle(obj.x, obj.y, obj.width || 200, obj.height || 40, {
-              isStatic: true,
-              isSensor: true,
-              label: 'finishLine',
-              objectData: obj,
-              render: { fillStyle: 'transparent', opacity: 0 }
-          } as any);
-          (body as any).originalWidth = obj.width || 200;
-          (body as any).originalHeight = obj.height || 40;
-          return body;
-      }
+       if (obj.type === 'finish') {
+           const body = Matter.Bodies.rectangle(obj.x, obj.y, obj.width || 200, obj.height || 40, {
+               isStatic: true,
+               isSensor: true,
+               label: 'finishLine',
+               objectData: obj,
+               render: { fillStyle: 'transparent', opacity: 0 }
+           } as any);
+           (body as any).originalWidth = obj.width || 200;
+           (body as any).originalHeight = obj.height || 40;
+           return body;
+       }
+
+       if (obj.type === 'moving-hazard') {
+           const body = Matter.Bodies.rectangle(obj.x, obj.y, obj.width || 400, obj.height || 100, {
+               ...bodyOptions,
+               isStatic: true,
+               isSensor: true,
+               label: 'lava',
+               objectData: obj
+           } as any);
+           if (body && obj.rotation) {
+               Matter.Body.setAngle(body, (obj.rotation * Math.PI) / 180);
+           }
+           // Record initial state for distance/growth tracking
+           this.hazardState.set(body.id.toString(), { 
+             startX: obj.x, 
+             startY: obj.y, 
+             startW: obj.width || 400, 
+             startH: obj.height || 100,
+             distance: 0 
+           });
+           return body;
+       }
 
       if (obj.type === 'triangle' || obj.type === 'triangle-right') {
           const w = obj.width || 60;
@@ -349,32 +394,41 @@ export class PhysicsEngine {
   }
 
   private setupEvents() {
-    Matter.Events.on(this.engine, 'beforeUpdate', () => {
-      this.updateObstacles();
-      this.updateRisingFloor();
-      
-      const floorTop = (this.risingFloor?.position.y || 0) - 600;
-      
-      if (!this.isRaceActive) return;
-      
-      const bodies = this.engine.world.bodies;
-      bodies.forEach(body => {
-        if ((body as any).colorName) {
-          const player = body as PlayerBody;
-          
-          // --- LÓGICA DE VELOCIDAD VARIABLE ---
-          // Decaimiento del multiplicador (vuelve a 1.0)
-          if ((player.currentSpeedMult || 1) !== 1) {
-            const diff = (player.currentSpeedMult || 1) - 1;
-            player.currentSpeedMult = (player.currentSpeedMult || 1) - (diff * 0.02);
-            if (Math.abs((player.currentSpeedMult || 1) - 1) < 0.01) player.currentSpeedMult = 1;
-          }
+     Matter.Events.on(this.engine, 'beforeUpdate', () => {
+       this.updateObstacles();
+       this.updateMovingHazards();
+       
+       if (!this.isRaceActive) return;
+       
+       const bodies = this.engine.world.bodies;
+       bodies.forEach(body => {
+         if ((body as any).colorName) {
+           const player = body as PlayerBody;
+           
+           // --- LÓGICA DE VELOCIDAD VARIABLE ---
+           // Decaimiento del multiplicador (vuelve a 1.0)
+           if ((player.currentSpeedMult || 1) !== 1) {
+             const diff = (player.currentSpeedMult || 1) - 1;
+             player.currentSpeedMult = (player.currentSpeedMult || 1) - (diff * 0.02);
+             if (Math.abs((player.currentSpeedMult || 1) - 1) < 0.01) player.currentSpeedMult = 1;
+           }
 
-          // --- EMPUJE MANUAL DE LA LAVA ---
-          if (body.position.y > floorTop - 20) {
-              const upwardPush = 0.05;
-              Matter.Body.applyForce(body, body.position, { x: 0, y: -upwardPush });
-          }
+                // --- EMPUJE MULTI-HAZARD ---
+           this.movingHazards.forEach(hazard => {
+             const distSq = Matter.Vector.magnitudeSquared(Matter.Vector.sub(body.position, hazard.position));
+             const hData = (hazard as any).objectData as LevelObject;
+             const hWidth = hData.width || 400;
+             const hHeight = hData.height || 100;
+             const range = Math.max(hWidth, hHeight);
+             
+             if (distSq < (range * range)) {
+               // If player is within bounds, push away from hazard center or apply upward push if below center
+               const upwardPush = 0.05;
+               if (body.position.y > hazard.position.y - hHeight/2 - 20) {
+                  Matter.Body.applyForce(body, body.position, { x: 0, y: -upwardPush });
+               }
+             }
+           });
 
           const velocity = body.velocity;
           const speed = Matter.Vector.magnitude(velocity);
@@ -630,6 +684,44 @@ export class PhysicsEngine {
             }
          }
 
+          else if (data.type === 'moving-hazard') {
+             const w = (body as any).dynamicWidth || data.width || 400;
+             const h = (body as any).dynamicHeight || data.height || 100;
+             const time = Date.now() * 0.002;
+             
+             // Base Hazard Color
+             context.fillStyle = data.properties?.color || '#ff4d00';
+             context.fillRect(-w/2, -h/2, w, h);
+             
+             // Glowing overlay
+             const gradient = context.createLinearGradient(0, -h/2, 0, h/2);
+             gradient.addColorStop(0, 'rgba(255,255,255,0.2)');
+             gradient.addColorStop(0.5, 'transparent');
+             gradient.addColorStop(1, 'rgba(0,0,0,0.2)');
+             context.fillStyle = gradient;
+             context.fillRect(-w/2, -h/2, w, h);
+
+             // Animated Lava Waves
+             context.save();
+             context.beginPath();
+             context.rect(-w/2, -h/2, w, h);
+             context.clip();
+             
+             context.fillStyle = 'rgba(255,255,255,0.15)';
+             for(let i=0; i<2; i++) {
+                const shift = (time * (1 + i * 0.5)) % (Math.PI * 2);
+                context.beginPath();
+                context.moveTo(-w/2, -h/4 + Math.sin(shift) * 10);
+                for(let x = -w/2; x <= w/2; x += 20) {
+                   context.lineTo(x, -h/4 + Math.sin(x/50 + shift) * 10 + i * 20);
+                }
+                context.lineTo(w/2, h/2);
+                context.lineTo(-w/2, h/2);
+                context.fill();
+             }
+             context.restore();
+          }
+ 
         // 2. Dibujar ICONO (Emoji) si está habilitado
         if (data.properties?.showIcon) {
            const icon = OBJECT_DEFINITIONS[data.type]?.icon || '?';
@@ -771,65 +863,85 @@ export class PhysicsEngine {
     });
   }
 
-  private updateObstacles() {
-    const time = this.engine.timing.timestamp;
-    const spinners = this.engine.world.bodies.filter(b => b.label?.startsWith('spinner'));
-    const floorY = this.risingFloor?.position.y || Infinity;
-    const floorTop = floorY - 600;
 
-    spinners.forEach((spinner, index) => {
-      if (spinner.position.y > floorTop) {
-        Matter.World.remove(this.engine.world, spinner);
-        return;
-      }
-      
-      const data = (spinner as any).objectData as LevelObject;
-      const initialAngle = ((data?.rotation || 0) * Math.PI) / 180;
-      const spinSpeed = data?.properties?.speed || 0.05; // Default speed if not set
-      
-      const direction = index % 2 === 0 ? 1 : -1;
-      Matter.Body.setAngle(spinner, initialAngle + (time * spinSpeed * 0.02 * direction));
-    });
+   private updateObstacles() {
+     const time = this.engine.timing.timestamp;
+     const spinners = this.engine.world.bodies.filter(b => b.label?.startsWith('spinner'));
+ 
+     spinners.forEach((spinner, index) => {
+       const data = (spinner as any).objectData as LevelObject;
+       if (!data) return;
+       const initialAngle = ((data.rotation || 0) * Math.PI) / 180;
+       const spinSpeed = data.properties?.speed || 0.1;
+       const direction = 1; // You can add logic for directions later if needed
+       Matter.Body.setAngle(spinner, initialAngle + (time * spinSpeed * 0.02 * direction));
+     });
+ 
+     // Cleanup: Remove objects that fall into any hazard
+     const mapParts = this.engine.world.bodies.filter(b => b.label === 'map-part' || b.label === 'crate' || b.label === 'spinner');
+     mapParts.forEach(part => {
+       this.movingHazards.forEach(hazard => {
+          if (Matter.Bounds.contains(hazard.bounds, part.position)) {
+             Matter.World.remove(this.engine.world, part);
+          }
+       });
+     });
+   }
+ 
+   private updateMovingHazards() {
+     if (!this.isRaceActive) return;
+ 
+     const elapsed = Date.now() - this.raceStartTime;
+     const players = this.engine.world.bodies.filter(b => (b as any).colorName);
 
-    const mapParts = this.engine.world.bodies.filter(b => b.label === 'map-part' || b.label === 'crate');
-    mapParts.forEach(part => {
-      if (part.position.y > floorTop + 20) {
-        Matter.World.remove(this.engine.world, part);
-      }
-    });
+     this.movingHazards.forEach(hazard => {
+       const data = (hazard as any).objectData as LevelObject;
+       const state = this.hazardState.get(hazard.id.toString());
+       if (!state) return;
 
-    // --- ELIMINACIÓN DE JUGADORES (Tragados al 75%) ---
-    const players = this.engine.world.bodies.filter(b => (b as any).colorName);
-    players.forEach(player => {
-      // Obtenemos el radio actual (considerando si está encogido)
-      const radius = (player as any).circleRadius || 20;
-      
-      // La lava se lo "traga" cuando cubre el 75% de su altura (2R)
-      // Matemáticamente: Posición Y >= floorTop + (Radio * 0.5)
-      if (player.position.y > floorTop + (radius * 0.5)) {
-        Matter.World.remove(this.engine.world, player);
-        // Opcional: Sonido de eliminación
-        soundManager.playCollision(2); 
-      }
-    });
+       const mode = data.properties?.hazardMode || 'move';
+       const limit = data.properties?.moveLimit || 1000;
+       const delay = data.properties?.moveDelay ?? 5000;
+       const vx = data.properties?.moveSpeedX ?? 0;
+       const vy = data.properties?.moveSpeedY ?? 0;
 
-  }
+       // 1. Process Movement/Growth
+       if (elapsed > delay && state.distance < limit) {
+         if (mode === 'move') {
+           Matter.Body.setPosition(hazard, {
+             x: hazard.position.x + vx,
+             y: hazard.position.y + vy
+           });
+         } else {
+           // GROW MODE logic: Expand while keeping the base fixed
+           const currentW = state.startW + (vx !== 0 ? state.distance : 0);
+           const currentH = state.startH + (vy !== 0 ? state.distance : 0);
+           
+           Matter.Body.setPosition(hazard, {
+             x: hazard.position.x + vx/2,
+             y: hazard.position.y + vy/2
+           });
+           
+           const scaleX = vx !== 0 ? (currentW + Math.abs(vx)) / currentW : 1;
+           const scaleY = vy !== 0 ? (currentH + Math.abs(vy)) / currentH : 1;
+           Matter.Body.scale(hazard, scaleX, scaleY);
 
+           (hazard as any).dynamicWidth = currentW + Math.abs(vx);
+           (hazard as any).dynamicHeight = currentH + Math.abs(vy);
+         }
+         state.distance += Math.sqrt(vx*vx + vy*vy);
+       }
 
-  private updateRisingFloor() {
-    if (!this.isRaceActive || !this.risingFloor || !this.config.floorEnabled) return;
-
-    const elapsed = Date.now() - this.raceStartTime;
-    if (elapsed > this.config.floorDelay) {
-      const newY = this.risingFloor.position.y - this.config.floorSpeed;
-      if (newY > 300) {
-        Matter.Body.setPosition(this.risingFloor, {
-          x: this.risingFloor.position.x,
-          y: newY
-        });
-      }
-    }
-  }
+       // 2. Kill Players submerged in this hazard
+       players.forEach(player => {
+         const isInside = Matter.Query.point([hazard], player.position).length > 0;
+         if (isInside) {
+           Matter.World.remove(this.engine.world, player);
+           soundManager.playCollision(2); 
+         }
+       });
+     });
+   }
 
   private handleWin(colorName: string) {
     this.isRaceActive = false;

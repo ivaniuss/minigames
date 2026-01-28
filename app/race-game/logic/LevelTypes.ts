@@ -14,7 +14,8 @@ export type ObjectType =
   | 'finish'
   | 'triangle'
   | 'triangle-right'
-  | 'crate-dynamic';
+  | 'crate-dynamic'
+  | 'moving-hazard';
 
 export interface LevelObject {
   id: string;
@@ -32,6 +33,11 @@ export interface LevelObject {
     color?: string;        // Custom color overrides
     label?: string;        // Optional label text
     showIcon?: boolean;    // Whether to show the emoji/icon
+    moveSpeedX?: number;   // Horizontal speed for moving hazards
+    moveSpeedY?: number;   // Vertical speed for moving hazards
+    moveDelay?: number;    // Delay before starting movement (ms)
+    moveLimit?: number;    // Max distance/size (pixels)
+    hazardMode?: 'move' | 'grow'; // Movement style
   };
 }
 
@@ -131,5 +137,10 @@ export const OBJECT_DEFINITIONS: Record<ObjectType, { label: string, icon: strin
     label: 'Dynamic Crate',
     icon: '📦',
     defaultProps: { width: 45, height: 45, properties: { color: '#cd853f', showIcon: true } }
+  },
+  'moving-hazard': {
+    label: 'Moving Danger',
+    icon: '🔥',
+    defaultProps: { width: 400, height: 100, properties: { color: '#ff4d00', showIcon: false, moveSpeedX: 0, moveSpeedY: -0.5, moveDelay: 5000, moveLimit: 1000, hazardMode: 'move' } }
   }
 };

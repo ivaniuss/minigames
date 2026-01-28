@@ -21,7 +21,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const [rotationGuide, setRotationGuide] = useState<number | null>(null);
 
   const dragRef = useRef<{ 
-      type: 'move' | 'resize' | 'rotate', 
+      type: 'move' | 'resize' | 'rotate' | 'vector', 
       handle?: { x: number, y: number },
       startX: number, 
       startY: number, 
@@ -30,7 +30,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const handleMouseDown = (e: React.MouseEvent, obj: LevelObject, type: 'move' | 'resize' | 'rotate', handle?: { x: number, y: number }) => {
+  const handleMouseDown = (e: React.MouseEvent, obj: LevelObject, type: 'move' | 'resize' | 'rotate' | 'vector', handle?: { x: number, y: number }) => {
     e.stopPropagation();
     onSelectObject(obj.id);
     dragRef.current = {
@@ -137,6 +137,32 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         
         if (guide !== rotationGuide) setRotationGuide(guide);
         onObjectChange({ ...obj, rotation: Math.round(finalAngle) });
+    } else if (dragRef.current.type === 'vector') {
+        const rect = canvasRef.current!.getBoundingClientRect();
+        const objScreenX = rect.left + obj.x;
+        const objScreenY = rect.top + obj.y;
+
+        // Offset from center to mouse
+        const ox = e.clientX - objScreenX;
+        const oy = e.clientY - objScreenY;
+
+        // Map pixel offset to speed values (e.g., 50px = 1.0 speed)
+        const sens = 40; 
+        let vx = ox / sens;
+        let vy = oy / sens;
+
+        // Round to 1 decimal place with small grid snap
+        vx = Math.round(vx * 5) / 5;
+        vy = Math.round(vy * 5) / 5;
+
+        onObjectChange({
+          ...obj,
+          properties: {
+            ...obj.properties,
+            moveSpeedX: vx,
+            moveSpeedY: vy
+          }
+        });
     }
   };
 
@@ -221,12 +247,77 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
                     <div 
                         className="absolute inset-0 z-10"
                         style={{
-                            backgroundColor: obj.properties?.color || '#555',
+                            backgroundColor: obj.properties?.color || (obj.type === 'moving-hazard' ? '#ff3300' : '#555'),
                             borderRadius: obj.radius ? '50%' : '4px',
                             clipPath: isTriangle ? 'polygon(50% 0%, 100% 100%, 0% 100%)' : 
                                       isRightTriangle ? 'polygon(0% 0%, 100% 100%, 0% 100%)' : 'none',
+                            opacity: obj.type === 'moving-hazard' ? 0.7 : 1,
+                            boxShadow: obj.type === 'moving-hazard' ? 'inset 0 0 50px rgba(255,100,0,0.5), 0 0 20px rgba(255,50,0,0.3)' : 'none'
                         }}
-                    />
+                    >
+                        {obj.type === 'moving-hazard' && (
+                            <div className="absolute inset-0 overflow-hidden opacity-30 pointer-events-none">
+                                <div className="absolute top-0 left-[-100%] w-[400%] h-full bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)] animate-[pulse_3s_infinite]" />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* WORLD SPACE UI LAYER (Counter-rotated for hazards) */}
+                    {obj.type === 'moving-hazard' && (
+                        <div 
+                            className="absolute inset-0 pointer-events-none z-50"
+                            style={{ transform: `rotate(${- (obj.rotation || 0)}deg)` }}
+                        >
+                            {/* Ghost Box at Limit (Shows where it stops) */}
+                            {isSelected && (obj.properties?.moveSpeedX !== 0 || obj.properties?.moveSpeedY !== 0) && (
+                                <div 
+                                    className="absolute border border-white/20 rounded pointer-events-none"
+                                    style={{
+                                        width: obj.width || 400,
+                                        height: obj.height || 100,
+                                        left: '50%',
+                                        top: '50%',
+                                        marginLeft: -(obj.width || 400) / 2 + ((obj.properties?.moveSpeedX ?? 0) * (obj.properties?.moveLimit ?? 1000) / (Math.sqrt(Math.pow(obj.properties?.moveSpeedX ?? 0, 2) + Math.pow(obj.properties?.moveSpeedY ?? 0, 2)) || 1)),
+                                        marginTop: -(obj.height || 100) / 2 + ((obj.properties?.moveSpeedY ?? 0) * (obj.properties?.moveLimit ?? 1000) / (Math.sqrt(Math.pow(obj.properties?.moveSpeedX ?? 0, 2) + Math.pow(obj.properties?.moveSpeedY ?? 0, 2)) || 1)),
+                                        backgroundColor: 'rgba(255, 100, 0, 0.05)',
+                                        borderStyle: 'dashed',
+                                        opacity: 0.5,
+                                        transform: `rotate(${obj.rotation || 0}deg)`
+                                    }}
+                                >
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[8px] font-black text-white/20 uppercase tracking-widest">
+                                        LIMIT
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Arrow Layer */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <div 
+                                    className="w-1 bg-white/80 rounded-full origin-bottom relative pointer-events-auto cursor-crosshair group/vector"
+                                    style={{
+                                        height: '60%',
+                                        transform: `rotate(${Math.atan2(obj.properties?.moveSpeedX ?? 0, -(obj.properties?.moveSpeedY ?? 0)) * 180 / Math.PI}deg) scaleY(${Math.sqrt(Math.pow(obj.properties?.moveSpeedX ?? 0, 2) + Math.pow(obj.properties?.moveSpeedY ?? 0, 2)) * 2})`,
+                                        opacity: isSelected ? 1 : 0.4
+                                    }}
+                                >
+                                    {/* Invisible large hit area for the handle */}
+                                    <div 
+                                        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center"
+                                        onMouseDown={(e) => handleMouseDown(e, obj, 'vector')}
+                                    >
+                                        <div className="w-5 h-5 bg-white/30 rounded-full border-2 border-white flex items-center justify-center group-hover/vector:scale-125 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.4)]">
+                                            <div className="w-2 h-2 border-t-2 border-r-2 border-white/80 rotate-[-45deg] translate-y-[1px]" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black text-white text-[8px] px-1.5 py-0.5 rounded-full font-bold shadow-lg opacity-0 group-hover/vector:opacity-100 transition-opacity">
+                                        SPEED: {Math.sqrt(Math.pow(obj.properties?.moveSpeedX || 0, 2) + Math.pow(obj.properties?.moveSpeedY || 0, 2)).toFixed(1)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Selection Glow (Subtle ring) */}
                     {isSelected && (
