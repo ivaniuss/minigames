@@ -329,9 +329,13 @@ export class PhysicsEngine {
            const body = Matter.Bodies.rectangle(obj.x, obj.y, obj.width || 400, obj.height || 100, {
                ...bodyOptions,
                isStatic: true,
-               isSensor: false, // Solid so players can bounce
+               isSensor: !!obj.properties?.hideUntilStart, // Initially intangible if hidden
                label: 'lava',
-               objectData: obj
+               objectData: obj,
+               render: { 
+                 ...bodyOptions.render, 
+                 visible: !obj.properties?.hideUntilStart // Hide from base renderer
+               }
            } as any);
            if (body && obj.rotation) {
                Matter.Body.setAngle(body, (obj.rotation * Math.PI) / 180);
@@ -418,6 +422,7 @@ export class PhysicsEngine {
 
                 // --- REFUERZO DE COLISIÓN (Opcional: Empuje hacia arriba en superficie) ---
            this.movingHazards.forEach(hazard => {
+             if (hazard.isSensor) return; // Skip hidden/intangible hazards
              const hData = (hazard as any).objectData as LevelObject;
              const bounds = hazard.bounds;
              const px = body.position.x;
@@ -711,8 +716,8 @@ export class PhysicsEngine {
 
           else if (data.type === 'moving-hazard') {
              // OPTIONAL: Hidden until it starts moving
-             if (this.isRaceActive && data.properties?.hideUntilStart) {
-                const elapsed = Date.now() - this.raceStartTime;
+             if (data.properties?.hideUntilStart) {
+                const elapsed = this.isRaceActive ? Date.now() - this.raceStartTime : 0;
                 const delay = data.properties?.moveDelay ?? 5000;
                 if (elapsed < delay) {
                    context.restore();
@@ -937,49 +942,66 @@ export class PhysicsEngine {
        const mode = data.properties?.hazardMode || 'move';
        const limit = data.properties?.moveLimit || 1000;
        const delay = data.properties?.moveDelay ?? 5000;
-       const vx = data.properties?.moveSpeedX ?? 0;
-       const vy = data.properties?.moveSpeedY ?? 0;
-
-        // OPTIONAL: Hidden and Intangible until it starts moving
-        if (data.properties?.hideUntilStart) {
-           hazard.isSensor = elapsed < delay;
+        const vx = data.properties?.moveSpeedX ?? 0;
+        const vy = data.properties?.moveSpeedY ?? 0;
+        // 1. Process Activation (Reveal/Solidify)
+        if (elapsed > delay) {
+           if (data.properties?.hideUntilStart && (hazard.isSensor || !hazard.render.visible)) {
+              hazard.isSensor = false;
+              hazard.render.visible = true;
+              // Reset collision state
+              Matter.Body.setStatic(hazard, false);
+              Matter.Body.setStatic(hazard, true);
+           }
         }
 
-       // 1. Process Movement/Growth + Boundary Check
-       if (elapsed > delay && state.distance < limit) {
-         const bounds = hazard.bounds;
-         const hitWallX = (vx < 0 && bounds.min.x <= (this.customLevel?.settings?.worldMargin || 0)) || (vx > 0 && bounds.max.x >= (GAME_WIDTH - (this.customLevel?.settings?.worldMargin || 0)));
-         const hitWallY = (vy < 0 && bounds.min.y <= (this.customLevel?.settings?.worldMargin || 0)) || (vy > 0 && bounds.max.y >= (GAME_HEIGHT - (this.customLevel?.settings?.worldMargin || 0)));
+        // 2. Process Movement/Growth + Boundary Check
+        if (elapsed > delay && state.distance < limit) {
+           const bounds = hazard.bounds;
+           const hitWallX = (vx < 0 && bounds.min.x <= (this.customLevel?.settings?.worldMargin || 0)) || (vx > 0 && bounds.max.x >= (GAME_WIDTH - (this.customLevel?.settings?.worldMargin || 0)));
+           const hitWallY = (vy < 0 && bounds.min.y <= (this.customLevel?.settings?.worldMargin || 0)) || (vy > 0 && bounds.max.y >= (GAME_HEIGHT - (this.customLevel?.settings?.worldMargin || 0)));
 
-         if (!hitWallX || !hitWallY) {
-           const actualVx = hitWallX ? 0 : vx;
-           const actualVy = hitWallY ? 0 : vy;
+           if (!hitWallX || !hitWallY) {
+             const actualVx = hitWallX ? 0 : vx;
+             const actualVy = hitWallY ? 0 : vy;
 
-           if (mode === 'move') {
-             Matter.Body.setPosition(hazard, {
-               x: hazard.position.x + actualVx,
-               y: hazard.position.y + actualVy
-             });
-           } else {
-             // GROW MODE logic: Expand while keeping the base fixed
-             const currentW = state.startW + (vx !== 0 ? state.distance : 0);
-             const currentH = state.startH + (vy !== 0 ? state.distance : 0);
-             
-             Matter.Body.setPosition(hazard, {
-               x: hazard.position.x + actualVx/2,
-               y: hazard.position.y + actualVy/2
-             });
-             
-             const scaleX = vx !== 0 ? (currentW + Math.abs(actualVx)) / currentW : 1;
-             const scaleY = vy !== 0 ? (currentH + Math.abs(actualVy)) / currentH : 1;
-             Matter.Body.scale(hazard, scaleX, scaleY);
+             if (mode === 'move') {
+               Matter.Body.setPosition(hazard, {
+                 x: hazard.position.x + actualVx,
+                 y: hazard.position.y + actualVy
+               });
+             } else {
+               // GROW MODE logic: Robust Rotation-aware expansion
+               const angle = hazard.angle;
+               const cos = Math.cos(-angle);
+               const sin = Math.sin(-angle);
+               
+               // Project speed to local axes
+               let lvX = actualVx * cos - actualVy * sin;
+               let lvY = actualVx * sin + actualVy * cos;
+               
+               // Ignore microscopic noise to avoid unwanted vertical/horizontal swelling
+               if (Math.abs(lvX) < 0.05) lvX = 0;
+               if (Math.abs(lvY) < 0.05) lvY = 0;
 
-             (hazard as any).dynamicWidth = currentW + Math.abs(actualVx);
-             (hazard as any).dynamicHeight = currentH + Math.abs(actualVy);
+               const currentW = (hazard as any).dynamicWidth || state.startW;
+               const currentH = (hazard as any).dynamicHeight || state.startH;
+               
+               const scaleX = lvX !== 0 ? (currentW + Math.abs(lvX)) / currentW : 1;
+               const scaleY = lvY !== 0 ? (currentH + Math.abs(lvY)) / currentH : 1;
+               
+               Matter.Body.scale(hazard, scaleX, scaleY);
+               Matter.Body.setPosition(hazard, {
+                  x: hazard.position.x + actualVx/2,
+                  y: hazard.position.y + actualVy/2
+               });
+               
+               (hazard as any).dynamicWidth = currentW * scaleX;
+               (hazard as any).dynamicHeight = currentH * scaleY;
+             }
+             state.distance += Math.sqrt(actualVx*actualVx + actualVy*actualVy);
            }
-           state.distance += Math.sqrt(actualVx*actualVx + actualVy*actualVy);
-         }
-       }
+        }
 
         // 2. Kill Players submerged in this hazard
         if (hazard.isSensor) return;
