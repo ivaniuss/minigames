@@ -38,6 +38,7 @@ export interface LevelObject {
     moveDelay?: number;    // Delay before starting movement (ms)
     moveLimit?: number;    // Max distance/size (pixels)
     hazardMode?: 'move' | 'grow'; // Movement style
+    hideUntilStart?: boolean; // Only visible after delay
   };
 }
 

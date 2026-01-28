@@ -286,6 +286,16 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ object, level,
                         />
                     </div>
 
+                    <div className="flex items-center justify-between p-2 bg-black/40 rounded border border-white/5">
+                        <label className="text-[9px] font-bold text-gray-500 uppercase">Invisible initially</label>
+                        <input 
+                            type="checkbox"
+                            checked={object.properties?.hideUntilStart ?? false}
+                            onChange={(e) => handlePropChange('hideUntilStart', e.target.checked)}
+                            className="w-3 h-3 accent-red-500 rounded cursor-pointer"
+                        />
+                    </div>
+
                     <div className="p-2 bg-blue-500/5 rounded border border-blue-500/10 mb-2">
                         <p className="text-[8px] text-blue-300 flex items-start gap-1">
                             <span className="mt-0.5">ℹ️</span>

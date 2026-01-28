@@ -710,6 +710,16 @@ export class PhysicsEngine {
          }
 
           else if (data.type === 'moving-hazard') {
+             // OPTIONAL: Hidden until it starts moving
+             if (this.isRaceActive && data.properties?.hideUntilStart) {
+                const elapsed = Date.now() - this.raceStartTime;
+                const delay = data.properties?.moveDelay ?? 5000;
+                if (elapsed < delay) {
+                   context.restore();
+                   return;
+                }
+             }
+
              const w = (body as any).dynamicWidth || data.width || 400;
              const h = (body as any).dynamicHeight || data.height || 100;
              const time = Date.now() * 0.002;
@@ -930,6 +940,11 @@ export class PhysicsEngine {
        const vx = data.properties?.moveSpeedX ?? 0;
        const vy = data.properties?.moveSpeedY ?? 0;
 
+        // OPTIONAL: Hidden and Intangible until it starts moving
+        if (data.properties?.hideUntilStart) {
+           hazard.isSensor = elapsed < delay;
+        }
+
        // 1. Process Movement/Growth + Boundary Check
        if (elapsed > delay && state.distance < limit) {
          const bounds = hazard.bounds;
@@ -966,8 +981,10 @@ export class PhysicsEngine {
          }
        }
 
-       // 2. Kill Players submerged in this hazard
-       players.forEach(player => {
+        // 2. Kill Players submerged in this hazard
+        if (hazard.isSensor) return;
+        
+        players.forEach(player => {
          // Check if player is center-inside
          const isInside = Matter.Query.point([hazard], player.position).length > 0;
          
