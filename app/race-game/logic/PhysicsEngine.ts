@@ -119,11 +119,14 @@ export class PhysicsEngine {
       render: { fillStyle: 'transparent', strokeStyle: 'transparent', lineWidth: 0 } 
     };
 
+    const margin = this.customLevel?.settings?.worldMargin || 0;
+
     // Walls
     const circuitWalls = [
-      Matter.Bodies.rectangle(5, GAME_HEIGHT / 2, 10, GAME_HEIGHT, wallOptions),
-      Matter.Bodies.rectangle(GAME_WIDTH - 5, GAME_HEIGHT / 2, 10, GAME_HEIGHT, wallOptions),
-      Matter.Bodies.rectangle(GAME_WIDTH / 2, 5, GAME_WIDTH, 10, wallOptions),
+      Matter.Bodies.rectangle(margin + 5, GAME_HEIGHT / 2, 10, GAME_HEIGHT, wallOptions),
+      Matter.Bodies.rectangle(GAME_WIDTH - margin - 5, GAME_HEIGHT / 2, 10, GAME_HEIGHT, wallOptions),
+      Matter.Bodies.rectangle(GAME_WIDTH / 2, margin + 5, GAME_WIDTH, 10, wallOptions),
+      Matter.Bodies.rectangle(GAME_WIDTH / 2, GAME_HEIGHT - margin - 5, GAME_WIDTH, 10, wallOptions),
     ];
 
     let levelParts: Matter.Body[] = [];
@@ -150,7 +153,7 @@ export class PhysicsEngine {
     if (this.config.floorEnabled && this.movingHazards.length === 0) {
       this.risingFloor = Matter.Bodies.rectangle(GAME_WIDTH / 2, GAME_HEIGHT + 600, GAME_WIDTH * 2, 1200, {
         isStatic: true,
-        isSensor: true,
+        isSensor: false, // Solid so players can bounce
         label: 'lava',
         render: { fillStyle: '#ff0055', opacity: 0.8 },
         objectData: {
@@ -326,7 +329,7 @@ export class PhysicsEngine {
            const body = Matter.Bodies.rectangle(obj.x, obj.y, obj.width || 400, obj.height || 100, {
                ...bodyOptions,
                isStatic: true,
-               isSensor: true,
+               isSensor: false, // Solid so players can bounce
                label: 'lava',
                objectData: obj
            } as any);
@@ -413,19 +416,19 @@ export class PhysicsEngine {
              if (Math.abs((player.currentSpeedMult || 1) - 1) < 0.01) player.currentSpeedMult = 1;
            }
 
-                // --- EMPUJE MULTI-HAZARD ---
+                // --- REFUERZO DE COLISIÓN (Opcional: Empuje hacia arriba en superficie) ---
            this.movingHazards.forEach(hazard => {
-             const distSq = Matter.Vector.magnitudeSquared(Matter.Vector.sub(body.position, hazard.position));
              const hData = (hazard as any).objectData as LevelObject;
-             const hWidth = hData.width || 400;
-             const hHeight = hData.height || 100;
-             const range = Math.max(hWidth, hHeight);
+             const bounds = hazard.bounds;
+             const px = body.position.x;
+             const py = body.position.y;
              
-             if (distSq < (range * range)) {
-               // If player is within bounds, push away from hazard center or apply upward push if below center
-               const upwardPush = 0.05;
-               if (body.position.y > hazard.position.y - hHeight/2 - 20) {
-                  Matter.Body.applyForce(body, body.position, { x: 0, y: -upwardPush });
+             const isInHorizontal = px > bounds.min.x - 10 && px < bounds.max.x + 10;
+             const isInVertical = py > bounds.min.y - 20 && py < bounds.max.y + 20;
+
+             if (isInHorizontal && isInVertical) {
+               if (py > bounds.min.y - 30) {
+                  Matter.Body.applyForce(body, body.position, { x: 0, y: -0.01 });
                }
              }
            });
@@ -452,6 +455,28 @@ export class PhysicsEngine {
       const context = this.render!.context;
       const bodies = this.engine.world.bodies;
       
+      // --- Render Frame (Safe Area) ---
+      const settings = this.customLevel?.settings;
+      if (settings?.worldMargin && settings.worldMargin > 0) {
+          const m = settings.worldMargin;
+          context.save();
+          context.fillStyle = settings.frameColor || '#1a1a1a';
+          context.globalAlpha = settings.frameOpacity ?? 1;
+          
+          context.fillRect(0, 0, m, GAME_HEIGHT); // Left
+          context.fillRect(GAME_WIDTH - m, 0, m, GAME_HEIGHT); // Right
+          context.fillRect(m, 0, GAME_WIDTH - 2*m, m); // Top
+          context.fillRect(m, GAME_HEIGHT - m, GAME_WIDTH - 2*m, m); // Bottom
+          
+          // Add a subtle neon edge where the game meets the frame
+          context.globalAlpha = 0.3;
+          context.strokeStyle = '#10b981'; // Emerald glow
+          context.lineWidth = 2;
+          context.strokeRect(m, m, GAME_WIDTH - 2*m, GAME_HEIGHT - 2*m);
+          
+          context.restore();
+      }
+
       // --- Render Finish Line ---
       const finishLine = bodies.find(b => b.label === 'finishLine');
       if (finishLine) {
@@ -905,39 +930,66 @@ export class PhysicsEngine {
        const vx = data.properties?.moveSpeedX ?? 0;
        const vy = data.properties?.moveSpeedY ?? 0;
 
-       // 1. Process Movement/Growth
+       // 1. Process Movement/Growth + Boundary Check
        if (elapsed > delay && state.distance < limit) {
-         if (mode === 'move') {
-           Matter.Body.setPosition(hazard, {
-             x: hazard.position.x + vx,
-             y: hazard.position.y + vy
-           });
-         } else {
-           // GROW MODE logic: Expand while keeping the base fixed
-           const currentW = state.startW + (vx !== 0 ? state.distance : 0);
-           const currentH = state.startH + (vy !== 0 ? state.distance : 0);
-           
-           Matter.Body.setPosition(hazard, {
-             x: hazard.position.x + vx/2,
-             y: hazard.position.y + vy/2
-           });
-           
-           const scaleX = vx !== 0 ? (currentW + Math.abs(vx)) / currentW : 1;
-           const scaleY = vy !== 0 ? (currentH + Math.abs(vy)) / currentH : 1;
-           Matter.Body.scale(hazard, scaleX, scaleY);
+         const bounds = hazard.bounds;
+         const hitWallX = (vx < 0 && bounds.min.x <= (this.customLevel?.settings?.worldMargin || 0)) || (vx > 0 && bounds.max.x >= (GAME_WIDTH - (this.customLevel?.settings?.worldMargin || 0)));
+         const hitWallY = (vy < 0 && bounds.min.y <= (this.customLevel?.settings?.worldMargin || 0)) || (vy > 0 && bounds.max.y >= (GAME_HEIGHT - (this.customLevel?.settings?.worldMargin || 0)));
 
-           (hazard as any).dynamicWidth = currentW + Math.abs(vx);
-           (hazard as any).dynamicHeight = currentH + Math.abs(vy);
+         if (!hitWallX || !hitWallY) {
+           const actualVx = hitWallX ? 0 : vx;
+           const actualVy = hitWallY ? 0 : vy;
+
+           if (mode === 'move') {
+             Matter.Body.setPosition(hazard, {
+               x: hazard.position.x + actualVx,
+               y: hazard.position.y + actualVy
+             });
+           } else {
+             // GROW MODE logic: Expand while keeping the base fixed
+             const currentW = state.startW + (vx !== 0 ? state.distance : 0);
+             const currentH = state.startH + (vy !== 0 ? state.distance : 0);
+             
+             Matter.Body.setPosition(hazard, {
+               x: hazard.position.x + actualVx/2,
+               y: hazard.position.y + actualVy/2
+             });
+             
+             const scaleX = vx !== 0 ? (currentW + Math.abs(actualVx)) / currentW : 1;
+             const scaleY = vy !== 0 ? (currentH + Math.abs(actualVy)) / currentH : 1;
+             Matter.Body.scale(hazard, scaleX, scaleY);
+
+             (hazard as any).dynamicWidth = currentW + Math.abs(actualVx);
+             (hazard as any).dynamicHeight = currentH + Math.abs(actualVy);
+           }
+           state.distance += Math.sqrt(actualVx*actualVx + actualVy*actualVy);
          }
-         state.distance += Math.sqrt(vx*vx + vy*vy);
        }
 
        // 2. Kill Players submerged in this hazard
        players.forEach(player => {
+         // Check if player is center-inside
          const isInside = Matter.Query.point([hazard], player.position).length > 0;
+         
          if (isInside) {
-           Matter.World.remove(this.engine.world, player);
-           soundManager.playCollision(2); 
+            // Only kill if the player is deeply submerged.
+            // Since bodies are solid, they only get "inside" if the hazard grows/moves into them.
+            // We'll use a safer padding: player must be at least 10px or 20% into the hazard.
+            const b = hazard.bounds;
+            const padX = Math.min(20, (b.max.x - b.min.x) * 0.25);
+            const padY = Math.min(20, (b.max.y - b.min.y) * 0.25);
+            
+            const isSubmerged = (
+              player.position.x > b.min.x + padX &&
+              player.position.x < b.max.x - padX &&
+              player.position.y > b.min.y + padY &&
+              player.position.y < b.max.y - padY
+            );
+
+            if (isSubmerged) {
+              Matter.World.remove(this.engine.world, player);
+              soundManager.playCollision(2); 
+            }
          }
        });
      });

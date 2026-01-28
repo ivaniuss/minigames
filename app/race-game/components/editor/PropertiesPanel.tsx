@@ -1,19 +1,87 @@
 import React from 'react';
-import { LevelObject } from '../../logic/LevelTypes';
+import { LevelObject, LevelData } from '../../logic/LevelTypes';
 
 interface PropertiesPanelProps {
   object: LevelObject | null;
+  level: LevelData;
   onChange: (updatedObject: LevelObject) => void;
   onDelete: (id: string) => void;
+  onLevelChange: (updatedLevel: LevelData) => void;
 }
 
-export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ object, onChange, onDelete }) => {
+export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({ object, level, onChange, onDelete, onLevelChange }) => {
+  const handleLevelSettingChange = (key: string, value: any) => {
+    onLevelChange({
+      ...level,
+      settings: {
+        ...level.settings,
+        [key]: value
+      }
+    });
+  };
+
   if (!object) {
     return (
-      <div className="bg-[#111] p-6 rounded-xl border border-white/10 w-full lg:w-64 h-full flex items-center justify-center text-center">
-        <p className="text-gray-600 text-xs font-bold uppercase tracking-widest">
-          Select an object to<br/>edit properties
-        </p>
+      <div className="bg-[#111] p-4 rounded-xl border border-white/10 w-full lg:w-64 flex flex-col gap-4 h-full overflow-y-auto">
+        <div className="flex justify-between items-center border-b border-blue-500/20 pb-2">
+            <h3 className="text-blue-400 font-black text-xs uppercase tracking-widest">World Settings</h3>
+        </div>
+
+        <div className="space-y-4">
+             <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Level Name</label>
+                <input 
+                    type="text" 
+                    value={level.name} 
+                    onChange={(e) => onLevelChange({ ...level, name: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <div className="flex justify-between">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">Safety Margin (Pixels)</label>
+                    <span className="text-[10px] font-mono text-blue-400">{level.settings?.worldMargin || 0}px</span>
+                </div>
+                <input 
+                    type="range" 
+                    min="0" max="150" step="5"
+                    value={level.settings?.worldMargin || 0} 
+                    onChange={(e) => handleLevelSettingChange('worldMargin', parseInt(e.target.value))}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <p className="text-[8px] text-gray-500 italic">Reduces playable area (TikTok/Shorts style).</p>
+            </div>
+
+            <div className="space-y-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase">Frame Color</label>
+                <input 
+                    type="color" 
+                    value={level.settings?.frameColor || '#1a1a1a'} 
+                    onChange={(e) => handleLevelSettingChange('frameColor', e.target.value)}
+                    className="w-full h-8 bg-transparent border-none cursor-pointer"
+                />
+            </div>
+
+            <div className="space-y-2">
+                <div className="flex justify-between">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase">Frame Opacity</label>
+                </div>
+                <input 
+                    type="range" 
+                    min="0" max="1" step="0.1"
+                    value={level.settings?.frameOpacity ?? 1} 
+                    onChange={(e) => handleLevelSettingChange('frameOpacity', parseFloat(e.target.value))}
+                    className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+            </div>
+        </div>
+
+        <div className="mt-auto pt-4 text-center">
+            <p className="text-gray-600 text-[10px] font-bold uppercase tracking-widest">
+              Select an object to<br/>edit properties
+            </p>
+        </div>
       </div>
     );
   }

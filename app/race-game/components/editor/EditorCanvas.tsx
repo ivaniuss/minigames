@@ -191,6 +191,17 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             onAddObject(type, x, y);
         }}
     >
+        {/* World Margin Frame (TikTok/Shorts style) */}
+        {level.settings?.worldMargin && level.settings.worldMargin > 0 && (
+            <div 
+                className="absolute inset-0 pointer-events-none z-40"
+                style={{
+                    boxShadow: `inset 0 0 0 ${level.settings.worldMargin}px ${level.settings.frameColor || '#1a1a1a'}`,
+                    opacity: level.settings.frameOpacity ?? 1
+                }}
+            />
+        )}
+
         {/* Grid Background */}
         <div 
             id="grid-bg"

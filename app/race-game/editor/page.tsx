@@ -213,8 +213,10 @@ const EditorPage = () => {
         <div className="w-64 lg:w-72 p-4 border-l border-white/10 bg-[#0a0a0a]">
           <PropertiesPanel 
             object={level.objects.find(o => o.id === selectedObjectId) || null}
+            level={level}
             onChange={handleObjectChange}
             onDelete={handleObjectDelete}
+            onLevelChange={setLevel}
           />
         </div>
       </div>

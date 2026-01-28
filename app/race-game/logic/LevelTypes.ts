@@ -47,6 +47,11 @@ export interface LevelData {
   objects: LevelObject[];
   createdAt: number;
   updatedAt: number;
+  settings?: {
+    worldMargin?: number;
+    frameColor?: string;
+    frameOpacity?: number;
+  };
 }
 
 export const DEFAULT_LEVEL: LevelData = {
@@ -55,6 +60,11 @@ export const DEFAULT_LEVEL: LevelData = {
   objects: [],
   createdAt: Date.now(),
   updatedAt: Date.now(),
+  settings: {
+    worldMargin: 0,
+    frameColor: '#1a1a1a',
+    frameOpacity: 1
+  }
 };
 
 export const OBJECT_DEFINITIONS: Record<ObjectType, { label: string, icon: string, defaultProps: Partial<LevelObject> }> = {
